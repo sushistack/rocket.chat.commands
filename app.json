@@ -1,0 +1,18 @@
+{
+    "id": "6e269965-9137-4de4-a3fe-e9b302684673",
+    "version": "0.9.1",
+    "requiredApiVersion": "^1.46.0",
+    "iconFile": "icon.png",
+    "author": {
+        "name": "Jay",
+        "homepage": "",
+        "support": ""
+    },
+    "name": "Pulsar",
+    "nameSlug": "pulsar",
+    "classFile": "DailyForgeApp.ts",
+    "description": "Rocket.Chat slash commands for Plane.so daily quest management",
+    "implements": [
+        "IUIKitInteractionHandler"
+    ]
+}

@@ -1,0 +1,6 @@
+{
+    "ignoredFiles": [
+        "tests/**",
+        "*.test.ts"
+    ]
+}

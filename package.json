@@ -1,0 +1,23 @@
+{
+    "name": "dailyforge",
+    "version": "0.1.0",
+    "description": "Rocket.Chat slash commands for Plane.so daily quest management",
+    "main": "DailyForgeApp.ts",
+    "scripts": {
+        "build": "tsc",
+        "deploy": "rc-apps deploy",
+        "lint": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "devDependencies": {
+        "@rocket.chat/apps-cli": "^1.13.0",
+        "@rocket.chat/apps-engine": "^1.46.0",
+        "@rocket.chat/ui-kit": "^1.0.0",
+        "@types/node": "^16.18.126",
+        "typescript": "~5.3.3"
+    },
+    "dependencies": {
+        "undici-types": "^8.0.2"
+    }
+}
