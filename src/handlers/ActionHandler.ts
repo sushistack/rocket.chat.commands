@@ -1,0 +1,278 @@
+import {
+    IHttp,
+    IModify,
+    IRead,
+} from '@rocket.chat/apps-engine/definition/accessors';
+import { getPlaneClient, getRoutineProjectId } from '../commands/_helpers';
+import { PlaneClient } from '../plane/PlaneClient';
+import { nowTimeString, todayString } from '../ui/formatters';
+
+export class ActionHandler {
+    constructor(
+        private readonly app: any,
+        private readonly read: IRead,
+        private readonly http: IHttp,
+        private readonly modify: IModify,
+    ) {}
+
+    async handleAction(actionId: string, userId: string, roomId: string, triggerId?: string): Promise<void> {
+        const underscoreIdx = actionId.indexOf('_');
+        if (underscoreIdx === -1) return;
+
+        const action = actionId.substring(0, underscoreIdx);
+        const issueId = actionId.substring(underscoreIdx + 1);
+
+        try {
+            switch (action) {
+                case 'complete':
+                    await this.handleComplete(issueId, roomId);
+                    break;
+                case 'cancel':
+                    await this.handleCancel(issueId, roomId);
+                    break;
+                case 'defer':
+                    await this.handleDefer(issueId, roomId);
+                    break;
+                case 'restore':
+                    await this.handleRestore(issueId, roomId);
+                    break;
+                case 'start':
+                    await this.handleStart(issueId, roomId);
+                    break;
+                case 'regen':
+                    await this.handleRegen(issueId, roomId);
+                    break;
+                default:
+                    break;
+            }
+        } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            await this.sendMessage(roomId, `❌ Plane 연결 실패: ${errMsg}`);
+        }
+    }
+
+    private async handleComplete(issueId: string, roomId: string): Promise<void> {
+        const client = await getPlaneClient(this.read, this.http);
+        const projectId = await getRoutineProjectId(this.read);
+        const time = nowTimeString();
+
+        const completedState = await client.findStateByGroup(projectId, 'completed');
+        if (!completedState) {
+            await this.sendMessage(roomId, '⚠️ completed 상태를 찾을 수 없어요.');
+            return;
+        }
+
+        const issue = await client.getIssue(projectId, issueId);
+        await client.updateIssue(projectId, issueId, { state: completedState.id });
+        await client.createComment(projectId, issueId, `<p>✅ [${time}] 유저가 수동 완료 처리</p>`);
+
+        // Count remaining actionable issues
+        const states = await client.listStates(projectId);
+        const todayItems = await client.getTodayIssues(projectId, states);
+        const remaining = todayItems.filter(
+            (item) => item.state.group === 'unstarted' || item.state.group === 'started',
+        ).length;
+
+        await this.sendMessage(
+            roomId,
+            `✅ "${issue.name}" 퀘스트를 완료했어요! 🎉\n📋 남은 퀘스트: ${remaining}개`,
+        );
+    }
+
+    private async handleCancel(issueId: string, roomId: string): Promise<void> {
+        const client = await getPlaneClient(this.read, this.http);
+        const projectId = await getRoutineProjectId(this.read);
+        const time = nowTimeString();
+
+        const cancelledState = await client.findStateByGroup(projectId, 'cancelled');
+        if (!cancelledState) {
+            await this.sendMessage(roomId, '⚠️ cancelled 상태를 찾을 수 없어요.');
+            return;
+        }
+
+        const issue = await client.getIssue(projectId, issueId);
+        await client.updateIssue(projectId, issueId, { state: cancelledState.id });
+        await client.createComment(projectId, issueId, `<p>❌ [${time}] 유저가 취소</p>`);
+
+        await this.sendMessage(roomId, `❌ "${issue.name}" 퀘스트를 취소했어요.`);
+    }
+
+    private async handleDefer(issueId: string, roomId: string): Promise<void> {
+        const client = await getPlaneClient(this.read, this.http);
+        const projectId = await getRoutineProjectId(this.read);
+        const time = nowTimeString();
+
+        const states = await client.listStates(projectId);
+        const deferredState = states.find((s) => s.name.toLowerCase().includes('deferred'));
+        if (!deferredState) {
+            await this.sendMessage(roomId, '⚠️ Deferred 상태를 찾을 수 없어요.');
+            return;
+        }
+
+        const issue = await client.getIssue(projectId, issueId);
+        const meta = PlaneClient.parseMeta(issue.description_html);
+
+        const deferCount = (meta.defer_count || 0) + 1;
+        if (!meta.original_quest_date) {
+            meta.original_quest_date = meta.quest_date || issue.target_date || todayString();
+        }
+        meta.defer_count = deferCount;
+
+        const updatedDescription = PlaneClient.setMeta(issue.description_html, meta);
+        await client.updateIssue(projectId, issueId, {
+            state: deferredState.id,
+            description_html: updatedDescription,
+        });
+
+        let commentText = `<p>⏸️ [${time}] 유저가 수동 연기 (누적: ${deferCount}회)</p>`;
+        if (deferCount >= 3) {
+            commentText += `<p>⚠️ 이 퀘스트가 ${deferCount}회 연기되었습니다. 우선순위를 재검토해주세요!</p>`;
+        }
+        await client.createComment(projectId, issueId, commentText);
+
+        let responseText = `⏸️ "${issue.name}" 퀘스트를 연기했어요. (누적: ${deferCount}회)`;
+        if (deferCount >= 3) {
+            responseText += `\n⚠️ 이 퀘스트는 ${deferCount}회째 연기 중이에요. 루틴에서 제외를 고려해보세요.`;
+        }
+        await this.sendMessage(roomId, responseText);
+    }
+
+    private async handleRestore(issueId: string, roomId: string): Promise<void> {
+        const client = await getPlaneClient(this.read, this.http);
+        const projectId = await getRoutineProjectId(this.read);
+        const time = nowTimeString();
+        const today = todayString();
+
+        const states = await client.listStates(projectId);
+        const restoreState = states.find(
+            (s) => (s.group === 'unstarted' || s.group === 'backlog') && !s.name.toLowerCase().includes('deferred'),
+        );
+        if (!restoreState) {
+            await this.sendMessage(roomId, '⚠️ 복원할 unstarted 상태를 찾을 수 없어요.');
+            return;
+        }
+
+        const issue = await client.getIssue(projectId, issueId);
+        await client.updateIssue(projectId, issueId, {
+            state: restoreState.id,
+            target_date: today,
+        });
+        await client.createComment(projectId, issueId, `<p>🔄 [${time}] 유저가 수동 복원</p>`);
+
+        await this.sendMessage(roomId, `🔄 "${issue.name}" 퀘스트를 오늘로 복원했어요!`);
+    }
+
+    private async handleStart(issueId: string, roomId: string): Promise<void> {
+        const client = await getPlaneClient(this.read, this.http);
+        const projectId = await getRoutineProjectId(this.read);
+        const time = nowTimeString();
+
+        const startedState = await client.findStateByGroup(projectId, 'started');
+        if (!startedState) {
+            await this.sendMessage(roomId, '⚠️ started 상태를 찾을 수 없어요.');
+            return;
+        }
+
+        const issue = await client.getIssue(projectId, issueId);
+        await client.updateIssue(projectId, issueId, { state: startedState.id });
+        await client.createComment(projectId, issueId, `<p>▶️ [${time}] 시작</p>`);
+
+        await this.sendMessage(roomId, `▶️ "${issue.name}" 퀘스트를 시작했어요!`);
+    }
+
+    private async handleRegen(value: string, roomId: string): Promise<void> {
+        if (value === 'cancel') {
+            await this.sendMessage(roomId, '↩️ 재생성이 취소되었어요.');
+            return;
+        }
+        if (value !== 'confirm') return;
+
+        const client = await getPlaneClient(this.read, this.http);
+        const projectId = await getRoutineProjectId(this.read);
+        const states = await client.listStates(projectId);
+        const todayItems = await client.getTodayIssues(projectId, states);
+        const deletable = todayItems.filter((item) => item.state.group !== 'completed');
+
+        let deleted = 0;
+        for (const item of deletable) {
+            await client.deleteIssue(projectId, item.issue.id);
+            deleted++;
+        }
+
+        // Re-copy routine tasks
+        const todoState = states.find(
+            (s) => (s.group === 'unstarted' || s.group === 'backlog') && !s.name.toLowerCase().includes('deferred'),
+        );
+        let copiedCount = 0;
+
+        if (todoState) {
+            const today = todayString();
+            const projects = await client.listProjects();
+            const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            const todayDate = new Date(today + 'T00:00:00+09:00');
+            const todayDay = dayNames[todayDate.getDay()];
+
+            // Get Done issues to avoid re-creating already completed ones
+            const doneSourceIds = new Set(
+                todayItems
+                    .filter((item) => item.state.group === 'completed')
+                    .map((item) => item.meta.source_issue_id)
+                    .filter(Boolean),
+            );
+
+            for (const project of projects) {
+                if (project.id === projectId) continue;
+                const labels = await client.listLabels(project.id);
+                const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
+                if (!routineLabel) continue;
+
+                const issues = await client.listIssues(project.id);
+                const routineIssues = issues.filter((i) => i.labels.includes(routineLabel.id));
+
+                for (const routine of routineIssues) {
+                    if (doneSourceIds.has(routine.id)) continue;
+                    const meta = PlaneClient.parseMeta(routine.description_html);
+                    if (meta.routine_active_from && meta.routine_active_from > today) continue;
+                    if (meta.routine_active_until && meta.routine_active_until < today) continue;
+                    if (meta.routine_type === 'weekly' && meta.routine_days && !meta.routine_days.includes(todayDay)) continue;
+
+                    const questMeta = {
+                        quest_date: today,
+                        scheduled_time: meta.routine_time,
+                        adjusted_duration_min: meta.routine_duration_min || 30,
+                        generation_source: 'routine_copy' as const,
+                        defer_count: 0,
+                        source_project_id: project.id,
+                        source_issue_id: routine.id,
+                    };
+                    const descHtml = PlaneClient.setMeta(
+                        routine.description_html || `<p>${routine.name}</p>`, questMeta);
+
+                    await client.createIssue(projectId, {
+                        name: routine.name,
+                        description_html: descHtml,
+                        state: todoState.id,
+                        priority: routine.priority,
+                        target_date: today,
+                    } as any);
+                    copiedCount++;
+                }
+            }
+        }
+
+        let resultText = `🔄 미완료 퀘스트 ${deleted}개 삭제`;
+        if (copiedCount > 0) {
+            resultText += ` → 루틴 ${copiedCount}개 재생성`;
+        }
+        resultText += '\n💡 LLM 기반 추가 태스크 생성은 추후 연동 예정';
+
+        await this.sendMessage(roomId, resultText);
+    }
+
+    private async sendMessage(roomId: string, text: string): Promise<void> {
+        const room = await this.read.getRoomReader().getById(roomId);
+        if (!room) return;
+        const msg = this.modify.getCreator().startMessage().setRoom(room).setText(text);
+        await this.modify.getCreator().finish(msg);
+    }
+}
