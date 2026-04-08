@@ -7,6 +7,7 @@ import {
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
+import { DailyForgeMeta } from '../plane/types';
 import { todayString } from '../ui/formatters';
 
 export class GenerateCommand implements ISlashCommand {
@@ -99,9 +100,14 @@ export class GenerateCommand implements ISlashCommand {
                     const labels = await client.listLabels(project.id);
                     const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
                     if (!routineLabel) continue;
+                    const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
 
                     const issues = await client.listIssues(project.id);
-                    const routineIssues = issues.filter((i) => i.labels.includes(routineLabel.id));
+                    const routineIssues = issues.filter((i) => {
+                        const hasRoutine = i.labels.includes(routineLabel.id);
+                        const isOn = onLabel ? i.labels.includes(onLabel.id) : true;
+                        return hasRoutine && isOn;
+                    });
 
                     for (const routine of routineIssues) {
                         if (existingSourceIds.has(routine.id)) continue;
@@ -110,7 +116,8 @@ export class GenerateCommand implements ISlashCommand {
                         if (meta.routine_active_until && meta.routine_active_until < today) continue;
                         if (meta.routine_type === 'weekly' && meta.routine_days && !meta.routine_days.includes(todayDay)) continue;
 
-                        const questMeta = {
+                        const questMeta: DailyForgeMeta = {
+                            ...meta,
                             quest_date: today,
                             scheduled_time: meta.routine_time,
                             adjusted_duration_min: meta.routine_duration_min || 30,

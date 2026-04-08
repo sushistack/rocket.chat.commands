@@ -6,14 +6,7 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
-import {
-    formatIssueOneLiner,
-    formatTodaySummary,
-    groupIssuesByState,
-    stateGroupEmoji,
-    stateGroupLabel,
-    IssueDisplayItem,
-} from '../ui/formatters';
+import { buildTodaySummaryBlocks } from '../ui/blocks';
 
 export class TodayCommand implements ISlashCommand {
     public command = 'today';
@@ -34,48 +27,12 @@ export class TodayCommand implements ISlashCommand {
             const states = await client.listStates(projectId);
             const items = await client.getTodayIssues(projectId, states);
 
-            const grouped = groupIssuesByState(items);
-            let text = formatTodaySummary(items);
-
-            if (items.length === 0) {
-                text += '🎉 오늘 등록된 퀘스트가 없습니다.\n';
-            } else {
-                let idx = 1;
-                const groupOrder = [
-                    { key: 'unstarted', emoji: '📝', label: 'To-Do' },
-                    { key: 'backlog', emoji: '📦', label: 'Backlog' },
-                    { key: 'started', emoji: '🔄', label: 'In Progress' },
-                    { key: 'completed', emoji: '✅', label: 'Done' },
-                    { key: 'cancelled', emoji: '❌', label: 'Canceled' },
-                ];
-                // Also handle deferred (which may be in any group)
-                const deferredItems = items.filter((i) => i.state.name.toLowerCase().includes('deferred'));
-                const nonDeferredGrouped = groupIssuesByState(
-                    items.filter((i) => !i.state.name.toLowerCase().includes('deferred')),
-                );
-
-                for (const { key, emoji, label } of groupOrder) {
-                    const groupItems = nonDeferredGrouped.get(key) || [];
-                    if (groupItems.length === 0) continue;
-                    text += `\n${emoji} **${label}**\n`;
-                    for (const item of groupItems) {
-                        text += `  ${formatIssueOneLiner(item, idx)}\n`;
-                        idx++;
-                    }
-                }
-
-                if (deferredItems.length > 0) {
-                    text += `\n⏸️ **Deferred**\n`;
-                    for (const item of deferredItems) {
-                        text += `  ${formatIssueOneLiner(item, idx)}\n`;
-                        idx++;
-                    }
-                }
-            }
+            const block = modify.getCreator().getBlockBuilder();
+            buildTodaySummaryBlocks(block, items);
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(text);
+                .setBlocks(block);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

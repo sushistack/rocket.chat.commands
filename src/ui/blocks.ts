@@ -1,5 +1,16 @@
 import { BlockBuilder, BlockElementType, TextObjectType } from '@rocket.chat/apps-engine/definition/uikit';
-import { IssueDisplayItem, priorityEmoji, formatTime } from './formatters';
+import {
+    IssueDisplayItem,
+    priorityEmoji,
+    stateGroupEmoji,
+    formatTime,
+    formatDuration,
+    progressBar,
+    todayString,
+    dayOfWeek,
+    groupIssuesByState,
+    formatIssueOneLiner,
+} from './formatters';
 
 export function buildIssueButtonList(
     block: BlockBuilder,
@@ -33,6 +44,96 @@ export function buildIssueButtonList(
                     value: item.issue.id,
                 }),
             ],
+        });
+    }
+}
+
+export function buildTodaySummaryBlocks(block: BlockBuilder, items: IssueDisplayItem[]): void {
+    const today = todayString();
+    const dow = dayOfWeek(today);
+    const total = items.length;
+    const done = items.filter((i) => i.state.group === 'completed').length;
+    const deferred = items.filter((i) => i.state.name.toLowerCase().includes('deferred')).length;
+    const cancelled = items.filter((i) => i.state.group === 'cancelled').length;
+    const todo = items.filter((i) =>
+        (i.state.group === 'unstarted' || i.state.group === 'backlog') && !i.state.name.toLowerCase().includes('deferred'),
+    ).length;
+    const inProgress = items.filter((i) => i.state.group === 'started').length;
+    const remaining = items
+        .filter((i) => i.state.group !== 'completed' && i.state.group !== 'cancelled')
+        .reduce((sum, i) => sum + (i.meta.adjusted_duration_min || 0), 0);
+    const rate = total > 0 ? Math.round((done / total) * 100) : 0;
+    const bar = progressBar(rate / 100, 15);
+
+    // Header section
+    block.addSectionBlock({
+        text: block.newMarkdownTextObject(`📋  *${today} (${dow}) 오늘의 퀘스트*`),
+    });
+
+    // Progress bar
+    block.addContextBlock({
+        elements: [
+            block.newMarkdownTextObject(`${bar}  *${rate}%*`),
+        ],
+    });
+
+    block.addDividerBlock();
+
+    // Stats
+    block.addSectionBlock({
+        text: block.newMarkdownTextObject(
+            `All: *${total}*  ✅ Done: *${done}*  📝 To-Do: *${todo}*  🔄 In Progress: *${inProgress}*\n` +
+            `⏸️ Deferred: *${deferred}*  ❌ Canceled: *${cancelled}*  ⏱️ 남은 시간: *${formatDuration(remaining)}*`,
+        ),
+    });
+
+    block.addDividerBlock();
+
+    // Issue list by group
+    const deferredItems = items.filter((i) => i.state.name.toLowerCase().includes('deferred'));
+    const nonDeferredItems = items.filter((i) => !i.state.name.toLowerCase().includes('deferred'));
+    const grouped = groupIssuesByState(nonDeferredItems);
+
+    const groupOrder = [
+        { key: 'unstarted', emoji: '📝', label: 'To-Do' },
+        { key: 'backlog', emoji: '📦', label: 'Backlog' },
+        { key: 'started', emoji: '🔄', label: 'In Progress' },
+        { key: 'completed', emoji: '✅', label: 'Done' },
+        { key: 'cancelled', emoji: '❌', label: 'Canceled' },
+    ];
+
+    let idx = 1;
+    for (const { key, emoji, label } of groupOrder) {
+        const groupItems = grouped.get(key) || [];
+        if (groupItems.length === 0) continue;
+
+        block.addContextBlock({
+            elements: [
+                block.newMarkdownTextObject(`${emoji} *${label}*`),
+            ],
+        });
+
+        const lines = groupItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
+        block.addSectionBlock({
+            text: block.newMarkdownTextObject(lines),
+        });
+    }
+
+    if (deferredItems.length > 0) {
+        block.addContextBlock({
+            elements: [
+                block.newMarkdownTextObject(`⏸️ *Deferred*`),
+            ],
+        });
+        const lines = deferredItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
+        block.addSectionBlock({
+            text: block.newMarkdownTextObject(lines),
+        });
+    }
+
+    if (items.length === 0) {
+        block.addSectionBlock({
+            text: block.newMarkdownTextObject('🎉 오늘 등록된 퀘스트가 없습니다.'),
         });
     }
 }

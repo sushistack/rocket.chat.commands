@@ -15,6 +15,12 @@ import {
 const META_PREFIX = 'DFMETA:';
 const META_REGEX = /<details><summary>meta<\/summary><code>DFMETA:(.*?)<\/code><\/details>/;
 
+const MAX_RETRIES = 3;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class PlaneClient {
     constructor(
         private readonly http: IHttp,
@@ -36,39 +42,89 @@ export class PlaneClient {
         return `${this.baseUrl}/api/v1/workspaces/${this.workspaceSlug}${path}`;
     }
 
-    private async get<T>(path: string, params?: Record<string, string>): Promise<T> {
-        const options: IHttpRequest = { headers: this.headers, params };
-        const res = await this.http.get(this.url(path), options);
-        if (!res.statusCode || res.statusCode >= 400) {
-            throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+    private async handleRateLimit(res: { statusCode: number; headers?: Record<string, string> }, path: string, attempt: number): Promise<void> {
+        if (res.statusCode === 429 && attempt < MAX_RETRIES) {
+            let waitSec = parseInt(res.headers?.['retry-after'] || '0', 10);
+            if (!waitSec || waitSec <= 0) {
+                // Fallback: try X-RateLimit-Reset (unix timestamp)
+                const resetTs = parseInt(res.headers?.['x-ratelimit-reset'] || '0', 10);
+                if (resetTs > 0) {
+                    waitSec = Math.max(1, Math.ceil(resetTs - Date.now() / 1000));
+                } else {
+                    waitSec = 2;
+                }
+            }
+            waitSec = Math.min(waitSec, 60);
+            await sleep(waitSec * 1000);
+            return;
         }
-        return JSON.parse(res.content || '{}') as T;
+        if (res.statusCode === 429) {
+            throw new Error(`Plane API rate limit exceeded after ${MAX_RETRIES} retries (${path})`);
+        }
+    }
+
+    private async get<T>(path: string, params?: Record<string, string>): Promise<T> {
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const options: IHttpRequest = { headers: this.headers, params };
+            const res = await this.http.get(this.url(path), options);
+            if (res.statusCode === 429) {
+                await this.handleRateLimit(res, path, attempt);
+                continue;
+            }
+            if (!res.statusCode || res.statusCode >= 400) {
+                throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+            }
+            return JSON.parse(res.content || '{}') as T;
+        }
+        throw new Error(`Plane API rate limit exceeded after ${MAX_RETRIES} retries (${path})`);
     }
 
     private async post<T>(path: string, data: any): Promise<T> {
-        const options: IHttpRequest = { headers: this.headers, data };
-        const res = await this.http.post(this.url(path), options);
-        if (!res.statusCode || res.statusCode >= 400) {
-            throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const options: IHttpRequest = { headers: this.headers, data };
+            const res = await this.http.post(this.url(path), options);
+            if (res.statusCode === 429) {
+                await this.handleRateLimit(res, path, attempt);
+                continue;
+            }
+            if (!res.statusCode || res.statusCode >= 400) {
+                throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+            }
+            return JSON.parse(res.content || '{}') as T;
         }
-        return JSON.parse(res.content || '{}') as T;
+        throw new Error(`Plane API rate limit exceeded after ${MAX_RETRIES} retries (${path})`);
     }
 
     private async patch<T>(path: string, data: any): Promise<T> {
-        const options: IHttpRequest = { headers: this.headers, data };
-        const res = await this.http.patch(this.url(path), options);
-        if (!res.statusCode || res.statusCode >= 400) {
-            throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const options: IHttpRequest = { headers: this.headers, data };
+            const res = await this.http.patch(this.url(path), options);
+            if (res.statusCode === 429) {
+                await this.handleRateLimit(res, path, attempt);
+                continue;
+            }
+            if (!res.statusCode || res.statusCode >= 400) {
+                throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+            }
+            return JSON.parse(res.content || '{}') as T;
         }
-        return JSON.parse(res.content || '{}') as T;
+        throw new Error(`Plane API rate limit exceeded after ${MAX_RETRIES} retries (${path})`);
     }
 
     private async del(path: string): Promise<void> {
-        const options: IHttpRequest = { headers: this.headers };
-        const res = await this.http.del(this.url(path), options);
-        if (!res.statusCode || res.statusCode >= 400) {
-            throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            const options: IHttpRequest = { headers: this.headers };
+            const res = await this.http.del(this.url(path), options);
+            if (res.statusCode === 429) {
+                await this.handleRateLimit(res, path, attempt);
+                continue;
+            }
+            if (!res.statusCode || res.statusCode >= 400) {
+                throw new Error(`Plane API error ${res.statusCode} (${path}): ${(res.content || '').substring(0, 200)}`);
+            }
+            return;
         }
+        throw new Error(`Plane API rate limit exceeded after ${MAX_RETRIES} retries (${path})`);
     }
 
     private async getAllPages<T>(path: string, params?: Record<string, string>, maxPages: number = 50): Promise<T[]> {
@@ -110,6 +166,18 @@ export class PlaneClient {
 
     async listLabels(projectId: string): Promise<PlaneLabel[]> {
         return this.getAllPages<PlaneLabel>(`/projects/${projectId}/labels/`);
+    }
+
+    async addLabelToIssue(projectId: string, issueId: string, labelId: string): Promise<PlaneIssue> {
+        const issue = await this.getIssue(projectId, issueId);
+        const labels = [...new Set([...issue.labels, labelId])];
+        return this.updateIssue(projectId, issueId, { labels } as any);
+    }
+
+    async removeLabelFromIssue(projectId: string, issueId: string, labelId: string): Promise<PlaneIssue> {
+        const issue = await this.getIssue(projectId, issueId);
+        const labels = issue.labels.filter((l) => l !== labelId);
+        return this.updateIssue(projectId, issueId, { labels } as any);
     }
 
     // ─── Issues ───

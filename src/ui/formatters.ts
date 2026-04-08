@@ -37,7 +37,8 @@ export function stateGroupLabel(group: string): string {
 }
 
 export function progressBar(ratio: number, width: number = 10): string {
-    const filled = Math.round(ratio * width);
+    const clamped = Math.max(0, Math.min(1, ratio));
+    const filled = Math.round(clamped * width);
     return '█'.repeat(filled) + '░'.repeat(width - filled);
 }
 

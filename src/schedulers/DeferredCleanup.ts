@@ -33,13 +33,19 @@ export class DeferredCleanup implements IProcessor {
 
             let autoCancelled = 0;
             const report: string[] = [];
+            const todayMs = new Date(today + 'T00:00:00+09:00').getTime();
 
             for (const issue of deferredIssues) {
                 const meta = PlaneClient.parseMeta(issue.description_html);
                 const deferCount = meta.defer_count || 0;
+                const questDate = meta.quest_date || issue.target_date;
+                const questMs = questDate ? new Date(questDate + 'T00:00:00+09:00').getTime() : NaN;
+                const elapsedDays = !isNaN(questMs)
+                    ? Math.floor((todayMs - questMs) / (1000 * 60 * 60 * 24))
+                    : 0;
 
-                // Auto-cancel if deferred 7+ times and not mandatory
-                if (deferCount >= 7) {
+                // Auto-cancel if 3+ days elapsed and not mandatory
+                if (elapsedDays >= 3) {
                     const isMandatory = meta.routine_mandatory === true;
                     if (!isMandatory) {
                         await client.updateIssue(projectId, issue.id, {
@@ -48,15 +54,15 @@ export class DeferredCleanup implements IProcessor {
                         await client.createComment(
                             projectId,
                             issue.id,
-                            `<p>🗑️ [${today}] ${deferCount}회 이상 연기로 자동 취소됨. 필요시 /restore로 복원 가능</p>`,
+                            `<p>🗑️ [${today}] ${elapsedDays}일 경과로 자동 취소됨. 필요시 /restore로 복원 가능</p>`,
                         );
                         autoCancelled++;
-                        report.push(`  ❌ ${issue.name} (${deferCount}회 연기 → 자동 취소)`);
+                        report.push(`  ❌ ${issue.name} (${elapsedDays}일 경과 → 자동 취소)`);
                     } else {
-                        report.push(`  ⚠️ ${issue.name} (${deferCount}회 연기, 필수 루틴 → 유지)`);
+                        report.push(`  ⚠️ ${issue.name} (${elapsedDays}일 경과, 필수 루틴 → 유지)`);
                     }
-                } else if (deferCount >= 3) {
-                    report.push(`  ⏸️ ${issue.name} (${deferCount}회 연기)`);
+                } else if (deferCount >= 2) {
+                    report.push(`  ⏸️ ${issue.name} (${deferCount}회 연기, ${elapsedDays}일 경과)`);
                 }
             }
 

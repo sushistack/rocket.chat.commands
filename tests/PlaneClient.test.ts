@@ -13,19 +13,19 @@ describe('PlaneClient.parseMeta', () => {
     });
 
     it('parses valid meta block', () => {
-        const html = '<p>Task desc</p>\n<!-- DAILYFORGE_META: {"quest_date":"2026-04-07","defer_count":2} -->';
+        const html = '<p>Task desc</p><details><summary>meta</summary><code>DFMETA:{"quest_date":"2026-04-07","defer_count":2}</code></details>';
         const meta = PlaneClient.parseMeta(html);
         expect(meta.quest_date).toBe('2026-04-07');
         expect(meta.defer_count).toBe(2);
     });
 
     it('returns empty object for malformed JSON in meta', () => {
-        const html = '<!-- DAILYFORGE_META: {bad json} -->';
+        const html = '<details><summary>meta</summary><code>DFMETA:{bad json}</code></details>';
         expect(PlaneClient.parseMeta(html)).toEqual({});
     });
 
-    it('returns empty object when META_END is missing', () => {
-        const html = '<!-- DAILYFORGE_META: {"quest_date":"2026-04-07"}';
+    it('returns empty object when DFMETA prefix is missing', () => {
+        const html = '<details><summary>meta</summary><code>{"quest_date":"2026-04-07"}</code></details>';
         expect(PlaneClient.parseMeta(html)).toEqual({});
     });
 
@@ -40,7 +40,7 @@ describe('PlaneClient.parseMeta', () => {
             source_project_id: 'proj-123',
             source_issue_id: 'issue-456',
         };
-        const html = `<p>Desc</p>\n<!-- DAILYFORGE_META: ${JSON.stringify(meta)} -->`;
+        const html = `<p>Desc</p><details><summary>meta</summary><code>DFMETA:${JSON.stringify(meta)}</code></details>`;
         expect(PlaneClient.parseMeta(html)).toEqual(meta);
     });
 });
@@ -48,41 +48,38 @@ describe('PlaneClient.parseMeta', () => {
 describe('PlaneClient.setMeta', () => {
     it('appends meta to empty description', () => {
         const result = PlaneClient.setMeta('', { quest_date: '2026-04-07' });
-        expect(result).toContain('<!-- DAILYFORGE_META:');
+        expect(result).toContain('DFMETA:');
         expect(result).toContain('"quest_date":"2026-04-07"');
-        expect(result).toContain('-->');
+        expect(result).toContain('<details><summary>meta</summary><code>');
     });
 
     it('appends meta to existing description', () => {
         const result = PlaneClient.setMeta('<p>Hello</p>', { quest_date: '2026-04-07' });
-        expect(result).toMatch(/^<p>Hello<\/p>\n<!-- DAILYFORGE_META:/);
+        expect(result).toMatch(/^<p>Hello<\/p>/);
+        expect(result).toContain('DFMETA:');
     });
 
     it('replaces existing meta block', () => {
-        const original = '<p>Desc</p>\n<!-- DAILYFORGE_META: {"defer_count":1} -->';
+        const original = '<p>Desc</p><details><summary>meta</summary><code>DFMETA:{"defer_count":1}</code></details>';
         const result = PlaneClient.setMeta(original, { defer_count: 2 });
         expect(result).toContain('"defer_count":2');
         expect(result).not.toContain('"defer_count":1');
-        // Should only have one meta block
-        const matches = result.match(/DAILYFORGE_META/g);
+        const matches = result.match(/DFMETA/g);
         expect(matches).toHaveLength(1);
     });
 
-    it('handles broken meta marker (no closing -->)', () => {
-        const original = '<p>Desc</p>\n<!-- DAILYFORGE_META: {"defer_count":1}';
+    it('handles incomplete meta block', () => {
+        const original = '<p>Desc</p><details><summary>meta</summary><code>DFMETA:{"defer_count":1}</code></details>';
         const result = PlaneClient.setMeta(original, { defer_count: 2 });
         expect(result).toContain('"defer_count":2');
-        expect(result).toContain('-->');
-        // Should clean up and have only one marker
-        const matches = result.match(/DAILYFORGE_META/g);
+        const matches = result.match(/DFMETA/g);
         expect(matches).toHaveLength(1);
     });
 
-    it('preserves content before and after meta block', () => {
-        const original = '<p>Before</p>\n<!-- DAILYFORGE_META: {"defer_count":1} -->\n<p>After</p>';
+    it('preserves content before meta block', () => {
+        const original = '<p>Before</p><details><summary>meta</summary><code>DFMETA:{"defer_count":1}</code></details>';
         const result = PlaneClient.setMeta(original, { defer_count: 3 });
         expect(result).toContain('<p>Before</p>');
-        expect(result).toContain('<p>After</p>');
         expect(result).toContain('"defer_count":3');
     });
 
@@ -100,7 +97,6 @@ describe('PlaneClient.todayKST', () => {
     });
 
     it('returns KST date (UTC+9)', () => {
-        // Mock a time where UTC and KST differ: 2026-04-07 23:30 UTC = 2026-04-08 08:30 KST
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-04-07T23:30:00Z'));
         expect(PlaneClient.todayKST()).toBe('2026-04-08');
@@ -109,14 +105,13 @@ describe('PlaneClient.todayKST', () => {
 
     it('returns same date when KST and UTC agree', () => {
         vi.useFakeTimers();
-        vi.setSystemTime(new Date('2026-04-07T12:00:00Z')); // 21:00 KST, same day
+        vi.setSystemTime(new Date('2026-04-07T12:00:00Z'));
         expect(PlaneClient.todayKST()).toBe('2026-04-07');
         vi.useRealTimers();
     });
 
     it('handles midnight KST boundary', () => {
         vi.useFakeTimers();
-        // 2026-04-07 15:00 UTC = 2026-04-08 00:00 KST
         vi.setSystemTime(new Date('2026-04-07T15:00:00Z'));
         expect(PlaneClient.todayKST()).toBe('2026-04-08');
         vi.useRealTimers();

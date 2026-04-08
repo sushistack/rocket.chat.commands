@@ -2,7 +2,7 @@ import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/de
 import { IJobContext, IProcessor } from '@rocket.chat/apps-engine/definition/scheduler';
 import { getPlaneClient, getRoutineProjectId } from '../commands/_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
-import { PlaneIssue, PlaneState } from '../plane/types';
+import { DailyForgeMeta, PlaneIssue, PlaneState } from '../plane/types';
 import { todayString } from '../ui/formatters';
 
 export class DailyQuestGenerator implements IProcessor {
@@ -21,27 +21,68 @@ export class DailyQuestGenerator implements IProcessor {
             const today = todayString();
             const states = await client.listStates(projectId);
 
-            // Idempotency: skip if routine_copy quests already exist for today
-            const todayItems = await client.getTodayIssues(projectId, states);
-            const alreadyGenerated = todayItems.some(
-                (item) => item.meta.generation_source === 'routine_copy',
-            );
-
-            // Step 1: 어제의 미완료 태스크 연기 처리 (always run)
-            await this.deferOverdueIssues(client, projectId, states, today);
-
-            // Step 2: 루틴 기반 태스크 복사 (skip if already done)
-            if (!alreadyGenerated) {
-                await this.copyRoutineTasks(client, projectId, states, today);
-            }
-
-            // Step 3~5: LLM 기반 → n8n에서 처리 (스킵)
+            // 5-step sequential pipeline
+            await this.step1RoutineOnOff(client, today);
+            await this.step2DeferOverdue(client, projectId, states, today);
+            await this.step3CopyRoutines(client, projectId, states, today);
+            await this.step4CancelStaleDeferred(client, projectId, states, today);
+            // Step 5: Cycle/Module progress — placeholder
         } catch (error) {
             // Scheduler errors are logged by the engine
         }
     }
 
-    private async deferOverdueIssues(
+    /**
+     * Step 1: 루틴 on/off 자동 관리
+     * routine_active_from/until 기간 체크해서 on↔off 라벨 전환
+     */
+    private async step1RoutineOnOff(client: PlaneClient, today: string): Promise<void> {
+        const projects = await client.listProjects();
+
+        for (const project of projects) {
+            const labels = await client.listLabels(project.id);
+            const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
+            if (!routineLabel) continue;
+
+            const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
+            const offLabel = labels.find((l) => l.name.toLowerCase() === 'off');
+            if (!onLabel || !offLabel) continue;
+
+            const issues = await client.listIssues(project.id);
+            const routineIssues = issues.filter((i) => i.labels.includes(routineLabel.id));
+
+            for (const issue of routineIssues) {
+                const meta = PlaneClient.parseMeta(issue.description_html);
+                // Skip if no active period defined
+                if (!meta.routine_active_from && !meta.routine_active_until) continue;
+
+                const isWithinPeriod =
+                    (!meta.routine_active_from || meta.routine_active_from <= today) &&
+                    (!meta.routine_active_until || meta.routine_active_until >= today);
+                const hasOn = issue.labels.includes(onLabel.id);
+                const hasOff = issue.labels.includes(offLabel.id);
+
+                try {
+                    if (isWithinPeriod && hasOff) {
+                        // 기간 내인데 off → on으로 전환
+                        await client.removeLabelFromIssue(project.id, issue.id, offLabel.id);
+                        await client.addLabelToIssue(project.id, issue.id, onLabel.id);
+                    } else if (!isWithinPeriod && hasOn) {
+                        // 기간 밖인데 on → off로 전환
+                        await client.removeLabelFromIssue(project.id, issue.id, onLabel.id);
+                        await client.addLabelToIssue(project.id, issue.id, offLabel.id);
+                    }
+                } catch {
+                    // Log error, skip this routine
+                }
+            }
+        }
+    }
+
+    /**
+     * Step 2: 어제의 미완료 태스크 → Deferred 처리
+     */
+    private async step2DeferOverdue(
         client: PlaneClient,
         projectId: string,
         states: PlaneState[],
@@ -58,10 +99,8 @@ export class DailyQuestGenerator implements IProcessor {
         const issues = await client.listIssues(projectId);
         const overdue = issues.filter((i) => {
             if (!todoStateIds.has(i.state)) return false;
-            // Skip already-deferred issues
             const st = states.find((s) => s.id === i.state);
             if (st && st.name.toLowerCase().includes('deferred')) return false;
-            // Check if target_date is before today
             return i.target_date && i.target_date < today;
         });
 
@@ -86,21 +125,29 @@ export class DailyQuestGenerator implements IProcessor {
         }
     }
 
-    private async copyRoutineTasks(
+    /**
+     * Step 3: on + daily-routine 라벨 루틴 기반 오늘 퀘스트 복사
+     * 메타데이터 전체 보존 (...meta spread)
+     */
+    private async step3CopyRoutines(
         client: PlaneClient,
         projectId: string,
         states: PlaneState[],
         today: string,
     ): Promise<void> {
+        // Idempotency check
+        const todayItems = await client.getTodayIssues(projectId, states);
+        const alreadyGenerated = todayItems.some(
+            (item) => item.meta.generation_source === 'routine_copy',
+        );
+        if (alreadyGenerated) return;
+
         const todoState = states.find(
             (s) => (s.group === 'unstarted' || s.group === 'backlog') && !s.name.toLowerCase().includes('deferred'),
         );
         if (!todoState) return;
 
-        // Get all projects and find routine tasks (label="daily-routine")
         const projects = await client.listProjects();
-
-        // Get today's existing issues to avoid duplicates
         const existingIssues = await client.listIssues(projectId);
         const existingSourceIds = new Set(
             existingIssues
@@ -113,30 +160,32 @@ export class DailyQuestGenerator implements IProcessor {
         const todayDay = dayNames[todayDate.getDay()];
 
         for (const project of projects) {
-            if (project.id === projectId) continue; // Skip routine project itself
+            if (project.id === projectId) continue;
 
             const labels = await client.listLabels(project.id);
             const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
             if (!routineLabel) continue;
+            const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
 
             const issues = await client.listIssues(project.id);
-            const routineIssues = issues.filter((i) => i.labels.includes(routineLabel.id));
+            const routineIssues = issues.filter((i) => {
+                const hasRoutine = i.labels.includes(routineLabel.id);
+                // on 라벨이 있는 프로젝트에서는 on 필터 적용, 없으면 기존 동작 유지
+                const isOn = onLabel ? i.labels.includes(onLabel.id) : true;
+                return hasRoutine && isOn;
+            });
 
             for (const routine of routineIssues) {
-                // Skip if already copied today
                 if (existingSourceIds.has(routine.id)) continue;
 
                 const meta = PlaneClient.parseMeta(routine.description_html);
-
-                // Check active period
                 if (meta.routine_active_from && meta.routine_active_from > today) continue;
                 if (meta.routine_active_until && meta.routine_active_until < today) continue;
-
-                // Check day matching
                 if (meta.routine_type === 'weekly' && meta.routine_days && !meta.routine_days.includes(todayDay)) continue;
 
-                // Create quest issue in routine project
-                const questMeta = {
+                // Preserve all routine metadata via spread
+                const questMeta: DailyForgeMeta = {
+                    ...meta,
                     quest_date: today,
                     scheduled_time: meta.routine_time,
                     adjusted_duration_min: meta.routine_duration_min || 30,
@@ -158,6 +207,52 @@ export class DailyQuestGenerator implements IProcessor {
                     priority: routine.priority,
                     target_date: today,
                 } as any);
+            }
+        }
+    }
+
+    /**
+     * Step 4: Deferred 이슈 중 3일 경과 → Canceled 처리
+     * routine_mandatory === true인 경우 스킵
+     */
+    private async step4CancelStaleDeferred(
+        client: PlaneClient,
+        projectId: string,
+        states: PlaneState[],
+        today: string,
+    ): Promise<void> {
+        const cancelledState = states.find((s) => s.group === 'cancelled');
+        if (!cancelledState) return;
+
+        const stateMap = new Map(states.map((s) => [s.id, s]));
+        const issues = await client.listIssues(projectId);
+        const deferredIssues = issues.filter((i) => {
+            const state = stateMap.get(i.state);
+            return state && state.name.toLowerCase().includes('deferred');
+        });
+
+        const todayMs = new Date(today + 'T00:00:00+09:00').getTime();
+
+        for (const issue of deferredIssues) {
+            const meta = PlaneClient.parseMeta(issue.description_html);
+            if (meta.routine_mandatory === true) continue;
+
+            const questDate = meta.quest_date || issue.target_date;
+            if (!questDate) continue;
+
+            const questMs = new Date(questDate + 'T00:00:00+09:00').getTime();
+            if (isNaN(questMs)) continue;
+            const elapsedDays = Math.floor((todayMs - questMs) / (1000 * 60 * 60 * 24));
+
+            if (elapsedDays >= 3) {
+                await client.updateIssue(projectId, issue.id, {
+                    state: cancelledState.id,
+                });
+                await client.createComment(
+                    projectId,
+                    issue.id,
+                    `<p>🗑️ [${today}] ${elapsedDays}일 경과로 자동 취소됨. 필요시 /restore로 복원 가능</p>`,
+                );
             }
         }
     }
