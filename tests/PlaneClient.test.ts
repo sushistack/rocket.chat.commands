@@ -56,8 +56,8 @@ describe('PlaneClient.setMeta', () => {
     it('appends meta to empty description', () => {
         const result = PlaneClient.setMeta('', { quest_date: '2026-04-07' });
         expect(result).toContain('DFMETA:');
-        expect(result).toContain('"quest_date":"2026-04-07"');
-        expect(result).toContain('<details><summary>meta</summary><code>');
+        expect(result).toContain('"quest_date": "2026-04-07"');
+        expect(result).toContain('<pre><code>');
     });
 
     it('appends meta to existing description', () => {
@@ -66,19 +66,19 @@ describe('PlaneClient.setMeta', () => {
         expect(result).toContain('DFMETA:');
     });
 
-    it('replaces existing meta block', () => {
+    it('replaces existing legacy meta block', () => {
         const original = '<p>Desc</p><details><summary>meta</summary><code>DFMETA:{"defer_count":1}</code></details>';
         const result = PlaneClient.setMeta(original, { defer_count: 2 });
-        expect(result).toContain('"defer_count":2');
-        expect(result).not.toContain('"defer_count":1');
+        expect(result).toContain('"defer_count": 2');
+        expect(result).not.toContain('"defer_count": 1');
         const matches = result.match(/DFMETA/g);
         expect(matches).toHaveLength(1);
     });
 
-    it('handles incomplete meta block', () => {
-        const original = '<p>Desc</p><details><summary>meta</summary><code>DFMETA:{"defer_count":1}</code></details>';
+    it('replaces existing pre meta block', () => {
+        const original = '<p>Desc</p>\n<pre><code>DFMETA:{\n  "defer_count": 1\n}</code></pre>';
         const result = PlaneClient.setMeta(original, { defer_count: 2 });
-        expect(result).toContain('"defer_count":2');
+        expect(result).toContain('"defer_count": 2');
         const matches = result.match(/DFMETA/g);
         expect(matches).toHaveLength(1);
     });
@@ -87,7 +87,7 @@ describe('PlaneClient.setMeta', () => {
         const original = '<p>Before</p><details><summary>meta</summary><code>DFMETA:{"defer_count":1}</code></details>';
         const result = PlaneClient.setMeta(original, { defer_count: 3 });
         expect(result).toContain('<p>Before</p>');
-        expect(result).toContain('"defer_count":3');
+        expect(result).toContain('"defer_count": 3');
     });
 
     it('roundtrips: parseMeta(setMeta(html, meta)) === meta', () => {

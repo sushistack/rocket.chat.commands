@@ -11,10 +11,11 @@ import {
     PlaneState,
 } from './types';
 
-// Plane sanitizes HTML comments and data attributes.
-// Use <details><code> block which survives Plane's sanitizer.
 const META_PREFIX = 'DFMETA:';
+// Legacy format: <details><summary>meta</summary><code>DFMETA:{...}</code></details>
 const META_REGEX = /<details><summary>meta<\/summary><code>DFMETA:(.*?)<\/code><\/details>/;
+// New format: <pre><code>DFMETA:{...}</code></pre>
+const META_PRE_REGEX = /<pre><code[^>]*>DFMETA:([\s\S]*?)<\/code><\/pre>/;
 
 const MAX_RETRIES = 3;
 
@@ -249,17 +250,23 @@ export class PlaneClient {
     static parseMeta(descriptionHtml: string | undefined | null): PulsarMeta {
         if (!descriptionHtml) return {};
 
-        // Primary: DFMETA format
+        // Primary: new <pre><code>DFMETA:{...}</code></pre> format
+        const preMatch = descriptionHtml.match(META_PRE_REGEX);
+        if (preMatch) {
+            try {
+                return JSON.parse(preMatch[1]);
+            } catch { /* fall through */ }
+        }
+
+        // Legacy: <details><summary>meta</summary><code>DFMETA:{...}</code></details>
         const match = descriptionHtml.match(META_REGEX);
         if (match) {
             try {
                 return JSON.parse(match[1]);
-            } catch {
-                return {};
-            }
+            } catch { /* fall through */ }
         }
 
-        // Fallback: JSON in <code> or <pre> block (manual metadata format)
+        // Fallback: JSON in <code> block (manual metadata format)
         const codeMatch = descriptionHtml.match(/<code[^>]*>\s*(\{[\s\S]*?\})\s*<\/code>/);
         if (codeMatch) {
             try {
@@ -279,14 +286,19 @@ export class PlaneClient {
     }
 
     static setMeta(descriptionHtml: string | undefined | null, meta: PulsarMeta): string {
-        const metaTag = `<details><summary>meta</summary><code>${META_PREFIX}${JSON.stringify(meta)}</code></details>`;
+        const json = JSON.stringify(meta, null, 2);
+        const metaTag = `<pre><code>${META_PREFIX}${json}</code></pre>`;
         const base = descriptionHtml || '';
 
-        // Remove existing meta block
-        const cleaned = base.replace(META_REGEX, '').replace(/<details><summary>meta<\/summary><code>DFMETA:.*?<\/code><\/details>/g, '');
+        // Remove existing meta blocks (both legacy and new format)
+        const cleaned = base
+            .replace(META_REGEX, '')
+            .replace(/<details><summary>meta<\/summary><code>DFMETA:.*?<\/code><\/details>/g, '')
+            .replace(META_PRE_REGEX, '')
+            .replace(/<pre><code[^>]*>DFMETA:[\s\S]*?<\/code><\/pre>/g, '');
 
         const safeBase = cleaned.trim() || '<p></p>';
-        return `${safeBase}${metaTag}`;
+        return `${safeBase}\n${metaTag}`;
     }
 
     // ─── Convenience: filter issues by today ───
