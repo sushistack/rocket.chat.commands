@@ -121,7 +121,7 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         modify: IModify,
     ): Promise<IUIKitResponse> {
         const data = context.getInteractionData();
-        const { actionId, user, room, triggerId } = data;
+        const { actionId, user, room, triggerId, message } = data;
 
         const handler = new ActionHandler(this, read, http, modify);
         await handler.handleAction(
@@ -130,6 +130,17 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
             room?.id || '',
             triggerId,
         );
+
+        // 버튼 클릭 후 원래 메시지에서 버튼 제거
+        if (message?.id) {
+            try {
+                const updater = await modify.getUpdater().message(message.id, user);
+                updater.setBlocks(modify.getCreator().getBlockBuilder());
+                await modify.getUpdater().finish(updater);
+            } catch {
+                // 메시지 업데이트 실패 시 무시
+            }
+        }
 
         return context.getInteractionResponder().successResponse();
     }
