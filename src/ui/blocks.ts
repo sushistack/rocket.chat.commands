@@ -84,7 +84,7 @@ export function buildTodaySummaryBlocks(block: BlockBuilder, items: IssueDisplay
     block.addSectionBlock({
         text: block.newMarkdownTextObject(
             `All: *${total}*  ✅ Done: *${done}*  📝 To-Do: *${todo}*  🔄 In Progress: *${inProgress}*\n` +
-            `⏸️ Deferred: *${deferred}*  ❌ Canceled: *${cancelled}*  ⏱️ 남은 시간: *${formatDuration(remaining)}*`,
+            `⏸️ Deferred: *${deferred}*  ❌ Canceled: *${cancelled}*  ⏱️ Remaining: *${formatDuration(remaining)}*`,
         ),
     });
 
@@ -170,7 +170,7 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
             { title: '✅ Done', value: `${done}`, short: true },
             { title: '📝 To-Do', value: `${todo}`, short: true },
             { title: '🔄 In Progress', value: `${inProgress}`, short: true },
-            { title: '⏱️ 남은 시간', value: formatDuration(remaining), short: true },
+            { title: '⏱️ Remaining', value: formatDuration(remaining), short: true },
             { title: '⏸️ Deferred', value: `${deferred}`, short: true },
             { title: '❌ Canceled', value: `${cancelled}`, short: true },
         ],

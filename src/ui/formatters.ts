@@ -131,7 +131,7 @@ export function formatTodaySummary(items: IssueDisplayItem[]): string {
     text += `│  All: ${total}  ✅ Done: ${done}  📝 To-Do: ${todo}\n`;
     text += `│  ⏸️ Deferred: ${deferred}  ❌ Canceled: ${cancelled}\n`;
     text += `│\n`;
-    text += `│  ⏱️ 남은 시간: ${formatDuration(remaining)}\n`;
+    text += `│  ⏱️ Remaining: ${formatDuration(remaining)}\n`;
     text += `└────────────────────┘\n`;
     return text;
 }
