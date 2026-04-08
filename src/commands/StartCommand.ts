@@ -103,19 +103,20 @@ export class StartCommand implements ISlashCommand {
                 `<p>▶️ [${timeNow}] 시작</p>`,
             );
 
-            let text = `▶️ '${matched.issue.name}' 시작!`;
-
-            // Warn if other issues are already in progress
+            const fields: Array<{ title: string; value: string; short: boolean }> = [];
             if (inProgressItems.length > 0) {
-                const names = inProgressItems.map((item) => item.issue.name);
-                for (const name of names) {
-                    text += `\n🔄 '${name}'도 진행 중이에요. 병행 OK?`;
+                for (const item of inProgressItems) {
+                    fields.push({ title: '🔄 병행 중', value: item.issue.name, short: true });
                 }
             }
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setAttachments([{ color: "#f39c12", text }]);
+                .setAttachments([{
+                    color: '#f39c12',
+                    title: { value: `▶️ '${matched.issue.name}' 시작!` },
+                    fields: fields.length > 0 ? fields : undefined,
+                }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

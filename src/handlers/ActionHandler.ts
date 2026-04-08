@@ -77,11 +77,13 @@ export class ActionHandler {
             (item) => item.state.group === 'unstarted' || item.state.group === 'started',
         ).length;
 
-        await this.sendMessage(
-            roomId,
-            `✅ "${issue.name}" 퀘스트를 완료했어요! 🎉\n📋 남은 퀘스트: ${remaining}개`,
-            '#2ecc71',
-        );
+        await this.sendAttachment(roomId, {
+            color: '#2ecc71',
+            title: { value: `✅ "${issue.name}" 완료! 🎉` },
+            fields: [
+                { title: '📋 남은 퀘스트', value: `${remaining}개`, short: true },
+            ],
+        });
     }
 
     private async handleCancel(issueId: string, roomId: string): Promise<void> {
@@ -135,11 +137,17 @@ export class ActionHandler {
         }
         await client.createComment(projectId, issueId, commentText);
 
-        let responseText = `⏸️ "${issue.name}" 퀘스트를 연기했어요. (누적: ${deferCount}회)`;
+        const fields = [
+            { title: '🔄 누적 연기', value: `${deferCount}회`, short: true },
+        ];
         if (deferCount >= 3) {
-            responseText += `\n⚠️ 이 퀘스트는 ${deferCount}회째 연기 중이에요. 루틴에서 제외를 고려해보세요.`;
+            fields.push({ title: '⚠️ 경고', value: '루틴 제외를 고려해보세요', short: true });
         }
-        await this.sendMessage(roomId, responseText, '#9b59b6');
+        await this.sendAttachment(roomId, {
+            color: '#9b59b6',
+            title: { value: `⏸️ "${issue.name}" 연기` },
+            fields,
+        });
     }
 
     private async handleRestore(issueId: string, roomId: string): Promise<void> {
@@ -308,6 +316,15 @@ export class ActionHandler {
         const msg = this.modify.getCreator().startMessage()
             .setRoom(room)
             .setAttachments([{ color, text }]);
+        await this.modify.getCreator().finish(msg);
+    }
+
+    private async sendAttachment(roomId: string, attachment: any): Promise<void> {
+        const room = await this.read.getRoomReader().getById(roomId);
+        if (!room) return;
+        const msg = this.modify.getCreator().startMessage()
+            .setRoom(room)
+            .setAttachments([attachment]);
         await this.modify.getCreator().finish(msg);
     }
 }
