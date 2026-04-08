@@ -30,4 +30,4 @@ jobs:
           RC_URL: ${{ secrets.RC_SERVER_URL }}
           RC_USER: ${{ secrets.RC_USER }}
           RC_PASS: ${{ secrets.RC_PASSWORD }}
-        run: npx @rocket.chat/apps-cli deploy --url "$RC_URL" --username "$RC_USER" --password "$RC_PASS" --update
+        run: npx @rocket.chat/apps-cli deploy --url "$RC_URL" --username "$RC_USER" --password "$RC_PASS" --update --verbose
