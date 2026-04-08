@@ -37,7 +37,13 @@ export class GenerateCommand implements ISlashCommand {
             if (alreadyGenerated) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setAttachments([{ color: '#f39c12', text: `ℹ️ 오늘의 퀘스트가 이미 생성되어 있어요. (${existingTodayItems.length}개)\n💡 초기화하려면 \`/regen\`을 사용하세요.` }]);
+                    .setAttachments([{
+                        color: '#f39c12',
+                        title: { value: `ℹ️ 오늘의 퀘스트가 이미 생성되어 있어요. (${existingTodayItems.length}개)` },
+                        fields: [
+                            { title: '💡 Tip', value: '/regen 으로 초기화 가능', short: false },
+                        ],
+                    }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -153,13 +159,13 @@ export class GenerateCommand implements ISlashCommand {
                 }
             }
 
-            let text = '🔨 퀘스트 생성 완료!';
-            if (deferredCount > 0) text += `\n⏳ 미완료 ${deferredCount}개 자동 연기`;
-            text += `\n📋 루틴 복사: ${copiedCount}개`;
+            const fields: Array<{ title: string; value: string; short: boolean }> = [];
+            if (deferredCount > 0) fields.push({ title: '⏳ 자동 연기', value: `${deferredCount}개`, short: true });
+            fields.push({ title: '📋 루틴 복사', value: `${copiedCount}개`, short: true });
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setAttachments([{ color: '#2ecc71', text }]);
+                .setAttachments([{ color: '#2ecc71', title: { value: '🔨 퀘스트 생성 완료!' }, fields }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

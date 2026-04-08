@@ -32,7 +32,13 @@ export class AddCommand implements ISlashCommand {
             if (args.length === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setAttachments([{ color: '#f39c12', text: '⚠️ 사용법: `/add {태스크명} {시작시간} {소요시간}`\n예: `/add 코드리뷰 14:00 1h30m`' }]);
+                    .setAttachments([{
+                        color: '#f39c12',
+                        title: { value: '⚠️ 사용법' },
+                        fields: [
+                            { title: '/add {태스크명} {시작시간} {소요시간}', value: '예: /add 코드리뷰 14:00 1h30m', short: false },
+                        ],
+                    }]);
                 await modify.getCreator().finish(msg);
                 return;
             }

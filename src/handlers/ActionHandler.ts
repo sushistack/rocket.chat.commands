@@ -291,13 +291,16 @@ export class ActionHandler {
             }
         }
 
-        let resultText = `🔄 미완료 퀘스트 ${deleted}개 삭제`;
-        if (copiedCount > 0) {
-            resultText += ` → 루틴 ${copiedCount}개 재생성`;
-        }
-        resultText += '\n💡 LLM 기반 추가 태스크 생성은 추후 연동 예정';
+        const fields: Array<{ title: string; value: string; short: boolean }> = [
+            { title: '🗑️ 삭제', value: `${deleted}개`, short: true },
+        ];
+        if (copiedCount > 0) fields.push({ title: '📋 재생성', value: `${copiedCount}개`, short: true });
 
-        await this.sendMessage(roomId, resultText);
+        await this.sendAttachment(roomId, {
+            color: '#2ecc71',
+            title: { value: '🔄 퀘스트 재생성 완료' },
+            fields,
+        });
     }
 
     private async handleDelete(issueId: string, roomId: string): Promise<void> {
