@@ -72,6 +72,22 @@ export interface PlaneCycle {
     backlog_issues: number;
 }
 
+export interface PlaneModule {
+    id: string;
+    name: string;
+    description: string;
+    start_date: string | null;
+    target_date: string | null;
+    status: string;
+    project: string;
+    total_issues: number;
+    completed_issues: number;
+    cancelled_issues: number;
+    started_issues: number;
+    unstarted_issues: number;
+    backlog_issues: number;
+}
+
 export interface PlaneComment {
     id: string;
     comment_html: string;

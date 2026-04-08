@@ -6,6 +6,7 @@ import {
     PlaneCycle,
     PlaneIssue,
     PlaneLabel,
+    PlaneModule,
     PlaneProject,
     PlaneState,
 } from './types';
@@ -223,6 +224,16 @@ export class PlaneClient {
 
     async listCycleIssues(projectId: string, cycleId: string): Promise<PlaneIssue[]> {
         return this.getAllPages<PlaneIssue>(`/projects/${projectId}/cycles/${cycleId}/cycle-issues/`);
+    }
+
+    // ─── Modules ───
+
+    async listModules(projectId: string): Promise<PlaneModule[]> {
+        return this.getAllPages<PlaneModule>(`/projects/${projectId}/modules/`);
+    }
+
+    async listModuleIssues(projectId: string, moduleId: string): Promise<PlaneIssue[]> {
+        return this.getAllPages<PlaneIssue>(`/projects/${projectId}/modules/${moduleId}/module-issues/`);
     }
 
     // ─── Date helpers ───

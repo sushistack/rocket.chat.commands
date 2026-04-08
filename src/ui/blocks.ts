@@ -242,7 +242,7 @@ export function buildSuccessAttachment(text: string): IMessageAttachment {
 // ─── Brief (milestone) attachments ───
 
 export function buildBriefAttachments(
-    cycles: Array<{ name: string; projectName: string; dDayStr: string; dateStr: string; pct: number; completed: number; total: number }>,
+    cycles: Array<{ name: string; projectName: string; dDayStr: string; dateStr: string; pct: number; completed: number; total: number; type?: string }>,
     label: string,
 ): IMessageAttachment[] {
     const attachments: IMessageAttachment[] = [];
@@ -251,11 +251,14 @@ export function buildBriefAttachments(
         color: '#9b59b6',
         title: { value: `🎯 마일스톤 브리핑 (${label})` },
         text: cycles.length === 0 ? '📭 진행 중인 마일스톤이 없습니다.' : undefined,
-        fields: cycles.length > 0 ? cycles.map((c, i) => ({
-            title: `${i + 1}. [${c.projectName}] ${c.name}`,
-            value: `📅 ${c.dDayStr} (${c.dateStr}) | ${progressBar(c.pct / 100)} ${c.pct}% (${c.completed}/${c.total})`,
-            short: false,
-        })) : undefined,
+        fields: cycles.length > 0 ? cycles.map((c, i) => {
+            const typeTag = c.type === 'module' ? '📦' : '🔄';
+            return {
+                title: `${i + 1}. ${typeTag} [${c.projectName}] ${c.name}`,
+                value: `📅 ${c.dDayStr} (${c.dateStr}) | ${progressBar(c.pct / 100)} ${c.pct}% (${c.completed}/${c.total})`,
+                short: false,
+            };
+        }) : undefined,
     });
 
     return attachments;
