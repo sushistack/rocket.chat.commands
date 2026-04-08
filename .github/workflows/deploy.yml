@@ -48,7 +48,7 @@ jobs:
           fi
 
           # Find the zip file
-          ZIP_FILE=$(ls *.zip 2>/dev/null | head -1)
+          ZIP_FILE=$(ls dist/*.zip 2>/dev/null | sort -V | tail -1)
           if [ -z "$ZIP_FILE" ]; then
             echo "No zip file found"
             exit 1
