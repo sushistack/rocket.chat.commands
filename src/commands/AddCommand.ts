@@ -102,7 +102,7 @@ export class AddCommand implements ISlashCommand {
             const timeDisplay = scheduledTime ? ` ${scheduledTime}` : '';
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`✅ '${name}'${timeDisplay} (${durationDisplay}) 추가 완료!`);
+                .setAttachments([{ color: '#2ecc71', text: `✅ '${name}'${timeDisplay} (${durationDisplay}) 추가 완료!` }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

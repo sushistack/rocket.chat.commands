@@ -222,6 +222,235 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
     return attachments;
 }
 
+// ─── Simple response attachment (one-liner results) ───
+
+export function buildResultAttachment(
+    text: string,
+    color: string = '#3498db',
+): IMessageAttachment {
+    return { color, text };
+}
+
+export function buildErrorAttachment(text: string): IMessageAttachment {
+    return { color: '#e74c3c', text: `❌ ${text}` };
+}
+
+export function buildSuccessAttachment(text: string): IMessageAttachment {
+    return { color: '#2ecc71', text: `✅ ${text}` };
+}
+
+// ─── Brief (milestone) attachments ───
+
+export function buildBriefAttachments(
+    cycles: Array<{ name: string; projectName: string; dDayStr: string; dateStr: string; pct: number; completed: number; total: number }>,
+    label: string,
+): IMessageAttachment[] {
+    const attachments: IMessageAttachment[] = [];
+
+    attachments.push({
+        color: '#9b59b6',
+        title: { value: `🎯 마일스톤 브리핑 (${label})` },
+        text: cycles.length === 0 ? '📭 진행 중인 마일스톤이 없습니다.' : undefined,
+        fields: cycles.length > 0 ? cycles.map((c, i) => ({
+            title: `${i + 1}. [${c.projectName}] ${c.name}`,
+            value: `📅 ${c.dDayStr} (${c.dateStr}) | ${progressBar(c.pct / 100)} ${c.pct}% (${c.completed}/${c.total})`,
+            short: false,
+        })) : undefined,
+    });
+
+    return attachments;
+}
+
+// ─── Stats attachments ───
+
+export function buildStatsAttachments(
+    days: number,
+    dailyLines: string[],
+    avgRate: number,
+    streak: number,
+    topDeferred: Array<[string, number]>,
+    topCompleted: Array<[string, number]>,
+): IMessageAttachment[] {
+    const attachments: IMessageAttachment[] = [];
+
+    // Daily breakdown
+    attachments.push({
+        color: '#3498db',
+        title: { value: `📊 루틴 통계 (최근 ${days}일)` },
+        text: dailyLines.join('\n'),
+    });
+
+    // Aggregate
+    const fields: IMessageAttachmentField[] = [
+        { title: '📈 평균 완료율', value: `${avgRate}%`, short: true },
+        { title: '🔥 연속 80%+', value: `${streak}일`, short: true },
+    ];
+    attachments.push({
+        color: '#f39c12',
+        title: { value: '📈 종합' },
+        fields,
+    });
+
+    if (topDeferred.length > 0) {
+        attachments.push({
+            color: '#9b59b6',
+            title: { value: '⏸️ 가장 많이 연기된 퀘스트' },
+            text: topDeferred.map(([name, count], i) => `${i + 1}. ${name} (${count}회)`).join('\n'),
+        });
+    }
+
+    if (topCompleted.length > 0) {
+        attachments.push({
+            color: '#2ecc71',
+            title: { value: '✅ 가장 많이 완료된 퀘스트' },
+            text: topCompleted.map(([name, count], i) => `${i + 1}. ${name} (${count}회)`).join('\n'),
+        });
+    }
+
+    return attachments;
+}
+
+// ─── Weekly attachments ───
+
+export function buildWeeklyAttachments(
+    weekStart: string,
+    weekEnd: string,
+    dailyLines: string[],
+    weekTotal: number,
+    weekDone: number,
+    weekCancelled: number,
+    weekRate: number,
+): IMessageAttachment[] {
+    const attachments: IMessageAttachment[] = [];
+
+    attachments.push({
+        color: '#3498db',
+        title: { value: `📅 주간 회고 (${weekStart} ~ ${weekEnd})` },
+        text: dailyLines.join('\n'),
+    });
+
+    attachments.push({
+        color: '#f39c12',
+        title: { value: '📊 주간 종합' },
+        fields: [
+            { title: 'Total', value: `${weekTotal}`, short: true },
+            { title: '✅ Done', value: `${weekDone}`, short: true },
+            { title: '❌ Canceled', value: `${weekCancelled}`, short: true },
+            { title: '📈 완료율', value: `${weekRate}%`, short: true },
+        ],
+    });
+
+    return attachments;
+}
+
+// ─── Deferred list attachments ───
+
+export function buildDeferredAttachments(
+    items: Array<{ name: string; priority: string; deferCount: number; originalDate: string; sourceName: string }>,
+): IMessageAttachment[] {
+    if (items.length === 0) {
+        return [{ color: '#2ecc71', text: '🎉 연기된 퀘스트가 없습니다!' }];
+    }
+
+    const lines = items.map((item, i) => {
+        const emoji = priorityEmoji(item.priority);
+        const warn = item.deferCount >= 5 ? ' 🔥' : item.deferCount >= 3 ? ' ⚠️' : '';
+        return `${i + 1}. [${emoji}] ${item.name}${warn}\n     📅 ${item.originalDate}  🔄 ${item.deferCount}회  📂 ${item.sourceName}`;
+    });
+
+    return [{
+        color: '#9b59b6',
+        title: { value: `⏸️ 연기된 퀘스트 (${items.length}개)` },
+        text: lines.join('\n'),
+    }];
+}
+
+// ─── Report attachments ───
+
+export function buildReportAttachments(
+    today: string,
+    dow: string,
+    done: number,
+    total: number,
+    rate: number,
+    totalTime: number,
+    remaining: number,
+    deferred: number,
+    incompleteNames: string[],
+): IMessageAttachment[] {
+    const color = rate >= 80 ? '#2ecc71' : rate >= 50 ? '#f39c12' : '#3498db';
+    let encouragement = '';
+    if (rate >= 90) encouragement = '🏆 완벽한 하루였어요!';
+    else if (rate >= 70) encouragement = '💪 잘 해냈어요!';
+    else if (rate >= 50) encouragement = '🌱 절반 이상 해냈어요!';
+    else encouragement = '☕ 오늘은 쉬어가는 날!';
+
+    const attachments: IMessageAttachment[] = [];
+
+    attachments.push({
+        color,
+        title: { value: `📊 ${today} (${dow}) 일일 리포트` },
+        text: `${progressBar(done / total, 15)}  **${rate}%** ${encouragement}`,
+        fields: [
+            { title: '✅ Done', value: `${done}`, short: true },
+            { title: '📝 Remaining', value: `${remaining}`, short: true },
+            { title: '⏱️ Time Invested', value: formatDuration(totalTime), short: true },
+            { title: '⏸️ Deferred', value: `${deferred}`, short: true },
+        ],
+    });
+
+    if (incompleteNames.length > 0) {
+        attachments.push({
+            color: '#95a5a6',
+            title: { value: '📝 미완료' },
+            text: incompleteNames.map((n) => `• ${n}`).join('\n'),
+        });
+    }
+
+    return attachments;
+}
+
+// ─── Help attachments ───
+
+export function buildHelpAttachments(): IMessageAttachment[] {
+    return [
+        {
+            color: '#3498db',
+            title: { value: '📋 일일 퀘스트' },
+            text: [
+                '`/today` — 오늘의 퀘스트 현황',
+                '`/add {이름} {시간} {소요}` — 태스크 추가',
+                '`/complete` — 퀘스트 완료 (버튼)',
+                '`/cancel` — 퀘스트 취소 (버튼)',
+                '`/defer` — 퀘스트 연기 (버튼)',
+                '`/restore` — 연기된 퀘스트 복원 (버튼)',
+                '`/start` — 퀘스트 시작 (버튼)',
+                '`/swap {A} {B}` — 시간 교환',
+                '`/memo {번호} {내용}` — 메모 추가',
+            ].join('\n'),
+        },
+        {
+            color: '#f39c12',
+            title: { value: '📊 조회/분석' },
+            text: [
+                '`/brief [all]` — 마일스톤 브리핑',
+                '`/stats [N]` — 최근 N일 통계',
+                '`/deferred` — 연기된 퀘스트 목록',
+                '`/weekly` — 주간 리포트',
+                '`/report` — 일일 리포트',
+            ].join('\n'),
+        },
+        {
+            color: '#2ecc71',
+            title: { value: '⚙️ 생성/관리' },
+            text: [
+                '`/gen` — 오늘 퀘스트 생성 (루틴 복사)',
+                '`/regen` — 퀘스트 초기화 후 재생성',
+            ].join('\n'),
+        },
+    ];
+}
+
 export function buildConfirmDialog(
     block: BlockBuilder,
     message: string,

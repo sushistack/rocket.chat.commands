@@ -8,6 +8,7 @@ import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/def
 import { getPlaneClient } from './_helpers';
 import { dDay, progressBar } from '../ui/formatters';
 import { PlaneCycle, PlaneProject } from '../plane/types';
+import { buildBriefAttachments } from '../ui/blocks';
 
 export class BriefCommand implements ISlashCommand {
     public command = 'brief';
@@ -28,7 +29,6 @@ export class BriefCommand implements ISlashCommand {
             const showAll = args.length > 0 && args[0].toLowerCase() === 'all';
 
             const projects = await client.listProjects();
-            const projectMap = new Map<string, PlaneProject>(projects.map((p) => [p.id, p]));
 
             const allCycles: { cycle: PlaneCycle; project: PlaneProject }[] = [];
 
@@ -39,7 +39,6 @@ export class BriefCommand implements ISlashCommand {
                 }
             }
 
-            // Sort by end_date ascending (null dates go last)
             allCycles.sort((a, b) => {
                 if (!a.cycle.end_date && !b.cycle.end_date) return 0;
                 if (!a.cycle.end_date) return 1;
@@ -51,29 +50,25 @@ export class BriefCommand implements ISlashCommand {
             const displayed = allCycles.slice(0, limit);
             const label = showAll ? '전체' : `Top ${Math.min(limit, displayed.length)}`;
 
-            let text = `🎯 마일스톤 브리핑 (${label})\n`;
-
-            if (displayed.length === 0) {
-                text += '\n📭 진행 중인 마일스톤이 없습니다.';
-            }
-
-            for (let i = 0; i < displayed.length; i++) {
-                const { cycle, project } = displayed[i];
+            const cycles = displayed.map(({ cycle, project }) => {
                 const total = cycle.total_issues || 0;
                 const completed = cycle.completed_issues || 0;
-                const ratio = total > 0 ? completed / total : 0;
-                const bar = progressBar(ratio);
-                const pct = Math.round(ratio * 100);
-                const dDayStr = cycle.end_date ? dDay(cycle.end_date) : '미정';
-                const dateStr = cycle.end_date ? cycle.end_date.split('T')[0] : '미정';
+                const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                return {
+                    name: cycle.name,
+                    projectName: project.name,
+                    dDayStr: cycle.end_date ? dDay(cycle.end_date) : '미정',
+                    dateStr: cycle.end_date ? cycle.end_date.split('T')[0] : '미정',
+                    pct,
+                    completed,
+                    total,
+                };
+            });
 
-                text += `\n${i + 1}. [${project.name}] ${cycle.name}`;
-                text += `\n   📅 ${dDayStr} (${dateStr}) | ${bar} ${pct}% (${completed}/${total})`;
-            }
-
+            const attachments = buildBriefAttachments(cycles, label);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(text);
+                .setAttachments(attachments);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

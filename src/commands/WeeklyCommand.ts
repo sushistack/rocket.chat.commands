@@ -9,6 +9,7 @@ import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
 import { PlaneState } from '../plane/types';
 import { progressBar, todayString, dayOfWeek } from '../ui/formatters';
+import { buildWeeklyAttachments } from '../ui/blocks';
 
 export class WeeklyCommand implements ISlashCommand {
     public command = 'weekly';
@@ -31,10 +32,9 @@ export class WeeklyCommand implements ISlashCommand {
             const states = await client.listStates(projectId);
             const stateMap = new Map<string, PlaneState>(states.map((s) => [s.id, s]));
 
-            // Calculate Mon-Sun of current week
             const today = todayString();
             const todayDate = new Date(today + 'T12:00:00+09:00');
-            const dayIdx = todayDate.getUTCDay(); // 0=Sun, 1=Mon, ...
+            const dayIdx = todayDate.getUTCDay();
             const mondayOffset = dayIdx === 0 ? -6 : 1 - dayIdx;
             const monday = new Date(todayDate);
             monday.setDate(monday.getDate() + mondayOffset);
@@ -46,7 +46,6 @@ export class WeeklyCommand implements ISlashCommand {
                 weekDates.push(d.toISOString().split('T')[0]);
             }
 
-            // Map issues to dates
             const dateIssueMap = new Map<string, { total: number; done: number; cancelled: number }>();
             for (const d of weekDates) {
                 dateIssueMap.set(d, { total: 0, done: 0, cancelled: 0 });
@@ -66,15 +65,10 @@ export class WeeklyCommand implements ISlashCommand {
                 }
             }
 
-            // Aggregate week stats
             let weekTotal = 0;
             let weekDone = 0;
             let weekCancelled = 0;
-
-            const weekStart = weekDates[0];
-            const weekEnd = weekDates[6];
-
-            let text = `📅 주간 회고 (${weekStart} ~ ${weekEnd})\n\n`;
+            const dailyLines: string[] = [];
 
             for (const date of weekDates) {
                 const stat = dateIssueMap.get(date)!;
@@ -92,25 +86,22 @@ export class WeeklyCommand implements ISlashCommand {
                 const marker = date === today ? ' 👈' : '';
 
                 if (isFuture && stat.total === 0) {
-                    text += `${shortDate}(${dow}) | ░░░░░░░░░░ —%\n`;
+                    dailyLines.push(`${shortDate}(${dow}) | ░░░░░░░░░░ —%`);
                 } else {
-                    text += `${shortDate}(${dow}) | ${bar} ${pct}% (${stat.done}/${stat.total})${marker}\n`;
+                    dailyLines.push(`${shortDate}(${dow}) | ${bar} ${pct}% (${stat.done}/${stat.total})${marker}`);
                 }
             }
 
             const weekEffective = weekTotal - weekCancelled;
-            const weekRate = weekEffective > 0 ? weekDone / weekEffective : 0;
+            const weekRate = weekEffective > 0 ? Math.round((weekDone / weekEffective) * 100) : 0;
 
-            text += `\n📊 주간 종합\n`;
-            text += `• 전체: ${weekTotal}개 | 완료: ${weekDone}개 | 취소: ${weekCancelled}개\n`;
-            text += `• 주간 완료율: ${Math.round(weekRate * 100)}%\n`;
-
-            // LLM placeholder
-            text += `\n💬 주간 회고 분석은 추후 연동 예정입니다.`;
-
+            const attachments = buildWeeklyAttachments(
+                weekDates[0], weekDates[6], dailyLines,
+                weekTotal, weekDone, weekCancelled, weekRate,
+            );
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(text);
+                .setAttachments(attachments);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

@@ -98,22 +98,22 @@ describe('parseDuration', () => {
 
 describe('formatDuration', () => {
     it('formats minutes only', () => {
-        expect(formatDuration(30)).toBe('30분');
-        expect(formatDuration(5)).toBe('5분');
+        expect(formatDuration(30)).toBe('30m');
+        expect(formatDuration(5)).toBe('5m');
     });
 
     it('formats hours only', () => {
-        expect(formatDuration(60)).toBe('1시간');
-        expect(formatDuration(120)).toBe('2시간');
+        expect(formatDuration(60)).toBe('1h');
+        expect(formatDuration(120)).toBe('2h');
     });
 
     it('formats combined hours and minutes', () => {
-        expect(formatDuration(90)).toBe('1시간 30분');
-        expect(formatDuration(135)).toBe('2시간 15분');
+        expect(formatDuration(90)).toBe('1h 30m');
+        expect(formatDuration(135)).toBe('2h 15m');
     });
 
     it('formats zero', () => {
-        expect(formatDuration(0)).toBe('0분');
+        expect(formatDuration(0)).toBe('0m');
     });
 });
 

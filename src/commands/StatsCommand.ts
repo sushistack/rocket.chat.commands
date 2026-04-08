@@ -8,16 +8,8 @@ import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/def
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
 import { PlaneIssue, PlaneState } from '../plane/types';
-import { progressBar, todayString, dayOfWeek, formatIssueOneLiner, IssueDisplayItem } from '../ui/formatters';
-
-interface DayStat {
-    date: string;
-    total: number;
-    done: number;
-    cancelled: number;
-    deferred: number;
-    rate: number;
-}
+import { progressBar, todayString, dayOfWeek } from '../ui/formatters';
+import { buildStatsAttachments } from '../ui/blocks';
 
 export class StatsCommand implements ISlashCommand {
     public command = 'stats';
@@ -49,7 +41,6 @@ export class StatsCommand implements ISlashCommand {
             const states = await client.listStates(projectId);
             const stateMap = new Map<string, PlaneState>(states.map((s) => [s.id, s]));
 
-            // Build date range (last N days ending today)
             const today = todayString();
             const dates: string[] = [];
             for (let i = days - 1; i >= 0; i--) {
@@ -58,7 +49,6 @@ export class StatsCommand implements ISlashCommand {
                 dates.push(d.toISOString().split('T')[0]);
             }
 
-            // Map issues to dates
             const dateIssueMap = new Map<string, PlaneIssue[]>();
             for (const d of dates) {
                 dateIssueMap.set(d, []);
@@ -72,10 +62,14 @@ export class StatsCommand implements ISlashCommand {
                 }
             }
 
-            // Calculate per-day stats
-            const dayStats: DayStat[] = [];
+            const dailyLines: string[] = [];
             const deferredCounts = new Map<string, number>();
             const completedCounts = new Map<string, number>();
+            const ratesAboveZero: number[] = [];
+            let streak = 0;
+            let streakBroken = false;
+
+            const dayStats: Array<{ total: number; rate: number }> = [];
 
             for (const date of dates) {
                 const dayIssues = dateIssueMap.get(date)!;
@@ -100,18 +94,19 @@ export class StatsCommand implements ISlashCommand {
 
                 const effective = total - cancelled;
                 const rate = effective > 0 ? done / effective : 0;
+                if (total > 0) ratesAboveZero.push(rate);
+                dayStats.push({ total, rate });
 
-                dayStats.push({ date, total, done, cancelled, deferred, rate });
+                const dow = dayOfWeek(date);
+                const shortDate = date.substring(5);
+                const bar = progressBar(rate);
+                const pct = Math.round(rate * 100);
+                let line = `${shortDate}(${dow}) | ${bar} ${pct}% (${done}/${total})`;
+                if (deferred > 0) line += ` ⏸️${deferred}`;
+                dailyLines.push(line);
             }
 
-            // Aggregate stats
-            const ratesAboveZero = dayStats.filter((d) => d.total > 0);
-            const avgRate = ratesAboveZero.length > 0
-                ? ratesAboveZero.reduce((sum, d) => sum + d.rate, 0) / ratesAboveZero.length
-                : 0;
-
-            // Streak: consecutive days with >= 80% rate (from most recent)
-            let streak = 0;
+            // Streak from most recent
             for (let i = dayStats.length - 1; i >= 0; i--) {
                 if (dayStats[i].total > 0 && dayStats[i].rate >= 0.8) {
                     streak++;
@@ -120,56 +115,17 @@ export class StatsCommand implements ISlashCommand {
                 }
             }
 
-            // Top 3 most deferred
-            const topDeferred = [...deferredCounts.entries()]
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 3);
+            const avgRate = ratesAboveZero.length > 0
+                ? Math.round(ratesAboveZero.reduce((s, r) => s + r, 0) / ratesAboveZero.length * 100)
+                : 0;
 
-            // Top 3 most completed
-            const topCompleted = [...completedCounts.entries()]
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 3);
+            const topDeferred = [...deferredCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+            const topCompleted = [...completedCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
 
-            // Format output
-            let text = `📊 루틴 통계 (최근 ${days}일)\n\n`;
-
-            // Daily breakdown
-            text += `📅 일별 현황\n`;
-            for (const stat of dayStats) {
-                const dow = dayOfWeek(stat.date);
-                const shortDate = stat.date.substring(5); // MM-DD
-                const bar = progressBar(stat.rate);
-                const pct = Math.round(stat.rate * 100);
-                text += `${shortDate}(${dow}) | ${bar} ${pct}% (${stat.done}/${stat.total})`;
-                if (stat.deferred > 0) text += ` ⏸️${stat.deferred}`;
-                text += '\n';
-            }
-
-            // Aggregate
-            text += `\n📈 종합\n`;
-            text += `• 평균 완료율: ${Math.round(avgRate * 100)}%\n`;
-            text += `• 연속 80%+ 달성: ${streak}일 🔥\n`;
-
-            if (topDeferred.length > 0) {
-                text += `\n⏸️ 가장 많이 연기된 퀘스트 (Top 3)\n`;
-                topDeferred.forEach(([name, count], i) => {
-                    text += `${i + 1}. ${name} (${count}회)\n`;
-                });
-            }
-
-            if (topCompleted.length > 0) {
-                text += `\n✅ 가장 많이 완료된 퀘스트 (Top 3)\n`;
-                topCompleted.forEach(([name, count], i) => {
-                    text += `${i + 1}. ${name} (${count}회)\n`;
-                });
-            }
-
-            // LLM placeholder
-            text += `\n💬 LLM 분석 기능은 추후 연동 예정입니다.`;
-
+            const attachments = buildStatsAttachments(days, dailyLines, avgRate, streak, topDeferred, topCompleted);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(text);
+                .setAttachments(attachments);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

@@ -37,7 +37,7 @@ export class GenerateCommand implements ISlashCommand {
             if (alreadyGenerated) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText(`ℹ️ 오늘의 퀘스트가 이미 생성되어 있어요. (${existingTodayItems.length}개)\n💡 초기화하려면 \`/regen\`을 사용하세요.`);
+                    .setAttachments([{ color: '#f39c12', text: `ℹ️ 오늘의 퀘스트가 이미 생성되어 있어요. (${existingTodayItems.length}개)\n💡 초기화하려면 \`/regen\`을 사용하세요.` }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -141,14 +141,13 @@ export class GenerateCommand implements ISlashCommand {
                 }
             }
 
-            let text = '🔨 퀘스트 생성 완료!\n';
-            if (deferredCount > 0) text += `⏳ 미완료 ${deferredCount}개 자동 연기\n`;
-            text += `📋 루틴 복사: ${copiedCount}개\n`;
-            text += '💡 LLM 기반 추가 태스크 생성은 추후 연동 예정';
+            let text = '🔨 퀘스트 생성 완료!';
+            if (deferredCount > 0) text += `\n⏳ 미완료 ${deferredCount}개 자동 연기`;
+            text += `\n📋 루틴 복사: ${copiedCount}개`;
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(text);
+                .setAttachments([{ color: '#2ecc71', text }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

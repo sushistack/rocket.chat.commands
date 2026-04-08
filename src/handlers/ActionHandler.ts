@@ -48,7 +48,7 @@ export class ActionHandler {
             }
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
-            await this.sendMessage(roomId, `❌ Plane 연결 실패: ${errMsg}`);
+            await this.sendMessage(roomId, `❌ Plane 연결 실패: ${errMsg}`, '#e74c3c');
         }
     }
 
@@ -77,6 +77,7 @@ export class ActionHandler {
         await this.sendMessage(
             roomId,
             `✅ "${issue.name}" 퀘스트를 완료했어요! 🎉\n📋 남은 퀘스트: ${remaining}개`,
+            '#2ecc71',
         );
     }
 
@@ -95,7 +96,7 @@ export class ActionHandler {
         await client.updateIssue(projectId, issueId, { state: cancelledState.id });
         await client.createComment(projectId, issueId, `<p>❌ [${time}] 유저가 취소</p>`);
 
-        await this.sendMessage(roomId, `❌ "${issue.name}" 퀘스트를 취소했어요.`);
+        await this.sendMessage(roomId, `❌ "${issue.name}" 퀘스트를 취소했어요.`, '#e74c3c');
     }
 
     private async handleDefer(issueId: string, roomId: string): Promise<void> {
@@ -135,7 +136,7 @@ export class ActionHandler {
         if (deferCount >= 3) {
             responseText += `\n⚠️ 이 퀘스트는 ${deferCount}회째 연기 중이에요. 루틴에서 제외를 고려해보세요.`;
         }
-        await this.sendMessage(roomId, responseText);
+        await this.sendMessage(roomId, responseText, '#9b59b6');
     }
 
     private async handleRestore(issueId: string, roomId: string): Promise<void> {
@@ -160,7 +161,7 @@ export class ActionHandler {
         });
         await client.createComment(projectId, issueId, `<p>🔄 [${time}] 유저가 수동 복원</p>`);
 
-        await this.sendMessage(roomId, `🔄 "${issue.name}" 퀘스트를 오늘로 복원했어요!`);
+        await this.sendMessage(roomId, `🔄 "${issue.name}" 퀘스트를 오늘로 복원했어요!`, '#2ecc71');
     }
 
     private async handleStart(issueId: string, roomId: string): Promise<void> {
@@ -178,7 +179,7 @@ export class ActionHandler {
         await client.updateIssue(projectId, issueId, { state: startedState.id });
         await client.createComment(projectId, issueId, `<p>▶️ [${time}] 시작</p>`);
 
-        await this.sendMessage(roomId, `▶️ "${issue.name}" 퀘스트를 시작했어요!`);
+        await this.sendMessage(roomId, `▶️ "${issue.name}" 퀘스트를 시작했어요!`, '#f39c12');
     }
 
     private async handleRegen(value: string, roomId: string): Promise<void> {
@@ -276,10 +277,12 @@ export class ActionHandler {
         await this.sendMessage(roomId, resultText);
     }
 
-    private async sendMessage(roomId: string, text: string): Promise<void> {
+    private async sendMessage(roomId: string, text: string, color: string = '#3498db'): Promise<void> {
         const room = await this.read.getRoomReader().getById(roomId);
         if (!room) return;
-        const msg = this.modify.getCreator().startMessage().setRoom(room).setText(text);
+        const msg = this.modify.getCreator().startMessage()
+            .setRoom(room)
+            .setAttachments([{ color, text }]);
         await this.modify.getCreator().finish(msg);
     }
 }
