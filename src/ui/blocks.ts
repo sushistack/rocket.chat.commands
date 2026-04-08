@@ -209,21 +209,37 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
         const groupItems = (grouped.get(key) || []).sort(sortByTime);
         if (groupItems.length === 0) continue;
 
-        const lines = groupItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
         attachments.push({
             color: groupColor,
-            title: { value: `${emoji} ${label}` },
-            text: lines,
+            title: { value: `${emoji} ${label} (${groupItems.length})` },
+            fields: groupItems.map((item) => {
+                const p = priorityEmoji(item.issue.priority);
+                const time = item.meta.scheduled_time || '--:--';
+                const dur = item.meta.adjusted_duration_min ? `${item.meta.adjusted_duration_min}m` : '';
+                const defer = item.meta.defer_count ? ` 🔄${item.meta.defer_count}` : '';
+                return {
+                    title: `${idx++}. ${p} ${item.issue.name}`,
+                    value: `${time} ${dur}${defer}`,
+                    short: true,
+                };
+            }),
         });
     }
 
     if (deferredItems.length > 0) {
         deferredItems.sort(sortByTime);
-        const lines = deferredItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
         attachments.push({
             color: '#9b59b6',
-            title: { value: '⏸️ Deferred' },
-            text: lines,
+            title: { value: `⏸️ Deferred (${deferredItems.length})` },
+            fields: deferredItems.map((item) => {
+                const p = priorityEmoji(item.issue.priority);
+                const defer = item.meta.defer_count ? `🔄${item.meta.defer_count}` : '';
+                return {
+                    title: `${idx++}. ${p} ${item.issue.name}`,
+                    value: `${item.meta.original_quest_date || '--'} ${defer}`,
+                    short: true,
+                };
+            }),
         });
     }
 
@@ -255,19 +271,38 @@ export function buildBriefAttachments(
 ): IMessageAttachment[] {
     const attachments: IMessageAttachment[] = [];
 
+    if (cycles.length === 0) {
+        attachments.push({
+            color: '#95a5a6',
+            title: { value: `🎯 마일스톤 브리핑 (${label})` },
+            text: '📭 진행 중인 마일스톤이 없습니다.',
+        });
+        return attachments;
+    }
+
+    // Header card
     attachments.push({
         color: '#9b59b6',
         title: { value: `🎯 마일스톤 브리핑 (${label})` },
-        text: cycles.length === 0 ? '📭 진행 중인 마일스톤이 없습니다.' : undefined,
-        fields: cycles.length > 0 ? cycles.map((c, i) => {
-            const typeTag = c.type === 'module' ? '📦' : '🔄';
-            return {
-                title: `${i + 1}. ${typeTag} [${c.projectName}] ${c.name}`,
-                value: `📅 ${c.dDayStr} (${c.dateStr}) | ${progressBar(c.pct / 100)} ${c.pct}% (${c.completed}/${c.total})`,
-                short: false,
-            };
-        }) : undefined,
     });
+
+    // Each cycle/module as its own card
+    for (const c of cycles) {
+        const typeTag = c.type === 'module' ? '📦' : '🔄';
+        const color = c.pct >= 80 ? '#2ecc71' : c.pct >= 40 ? '#f39c12' : '#3498db';
+
+        attachments.push({
+            color,
+            title: { value: `${typeTag} [${c.projectName}] ${c.name}` },
+            text: `${progressBar(c.pct / 100, 20)}  **${c.pct}%**`,
+            fields: [
+                { title: '📅 D-Day', value: c.dDayStr, short: true },
+                { title: '📆 Due', value: c.dateStr, short: true },
+                { title: '✅ Done', value: `${c.completed}`, short: true },
+                { title: '📊 Total', value: `${c.total}`, short: true },
+            ],
+        });
+    }
 
     return attachments;
 }
