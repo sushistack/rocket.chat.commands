@@ -24,9 +24,16 @@ describe('PlaneClient.parseMeta', () => {
         expect(PlaneClient.parseMeta(html)).toEqual({});
     });
 
-    it('returns empty object when DFMETA prefix is missing', () => {
+    it('falls back to code block JSON when DFMETA prefix is missing', () => {
         const html = '<details><summary>meta</summary><code>{"quest_date":"2026-04-07"}</code></details>';
-        expect(PlaneClient.parseMeta(html)).toEqual({});
+        expect(PlaneClient.parseMeta(html)).toEqual({ quest_date: '2026-04-07' });
+    });
+
+    it('parses manual code block metadata', () => {
+        const html = '<p>Task</p><code>{"routine_type":"weekly","routine_days":["sat","sun"]}</code>';
+        const meta = PlaneClient.parseMeta(html);
+        expect(meta.routine_type).toBe('weekly');
+        expect(meta.routine_days).toEqual(['sat', 'sun']);
     });
 
     it('parses all PulsarMeta fields', () => {

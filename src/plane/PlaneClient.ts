@@ -249,10 +249,21 @@ export class PlaneClient {
     static parseMeta(descriptionHtml: string | undefined | null): PulsarMeta {
         if (!descriptionHtml) return {};
 
+        // Primary: DFMETA format
         const match = descriptionHtml.match(META_REGEX);
         if (match) {
             try {
                 return JSON.parse(match[1]);
+            } catch {
+                return {};
+            }
+        }
+
+        // Fallback: JSON in <code> block (manual metadata format)
+        const codeMatch = descriptionHtml.match(/<code>\s*(\{[\s\S]*?\})\s*<\/code>/);
+        if (codeMatch) {
+            try {
+                return JSON.parse(codeMatch[1]);
             } catch {
                 return {};
             }
