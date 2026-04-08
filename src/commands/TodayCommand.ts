@@ -6,7 +6,7 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
-import { buildTodaySummaryBlocks } from '../ui/blocks';
+import { buildTodaySummaryAttachments } from '../ui/blocks';
 
 export class TodayCommand implements ISlashCommand {
     public command = 'today';
@@ -27,12 +27,10 @@ export class TodayCommand implements ISlashCommand {
             const states = await client.listStates(projectId);
             const items = await client.getTodayIssues(projectId, states);
 
-            const block = modify.getCreator().getBlockBuilder();
-            buildTodaySummaryBlocks(block, items);
-
+            const attachments = buildTodaySummaryAttachments(items);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setBlocks(block);
+                .setAttachments(attachments);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
