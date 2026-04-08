@@ -36,7 +36,8 @@ jobs:
         run: |
           # Login
           LOGIN=$(curl -s "$RC_URL/api/v1/login" \
-            -d "user=$RC_USER&password=$RC_PASS")
+            -H "Content-Type: application/json" \
+            -d "{\"user\":\"$RC_USER\",\"password\":\"$RC_PASS\"}")
           TOKEN=$(echo "$LOGIN" | jq -r '.data.authToken')
           USER_ID=$(echo "$LOGIN" | jq -r '.data.userId')
 
