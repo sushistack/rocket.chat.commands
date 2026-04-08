@@ -158,6 +158,12 @@ export class DailyQuestGenerator implements IProcessor {
                 .filter(Boolean),
         );
 
+        // 루틴 프로젝트 라벨 (이름→ID 매핑용)
+        const targetLabels = await client.listLabels(projectId);
+        const targetLabelByName = new Map(targetLabels.map((l) => [l.name.toLowerCase(), l.id]));
+
+        const EXCLUDED_LABELS = new Set(['on', 'off']);
+
         const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
         const todayDate = new Date(today + 'T12:00:00+09:00');
         const todayDay = dayNames[todayDate.getUTCDay()];
@@ -169,11 +175,12 @@ export class DailyQuestGenerator implements IProcessor {
             const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
             if (!routineLabel) continue;
             const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
+            // 소스 라벨 ID→이름 매핑
+            const sourceLabelById = new Map(labels.map((l) => [l.id, l.name]));
 
             const issues = await client.listIssues(project.id);
             const routineIssues = issues.filter((i) => {
                 const hasRoutine = i.labels.includes(routineLabel.id);
-                // on 라벨이 있는 프로젝트에서는 on 필터 적용, 없으면 기존 동작 유지
                 const isOn = onLabel ? i.labels.includes(onLabel.id) : true;
                 return hasRoutine && isOn;
             });
@@ -203,12 +210,20 @@ export class DailyQuestGenerator implements IProcessor {
                     questMeta,
                 );
 
+                // 소스 라벨을 루틴 프로젝트 라벨로 매핑 (on/off 제외)
+                const questLabels = routine.labels
+                    .map((id) => sourceLabelById.get(id))
+                    .filter((name): name is string => !!name && !EXCLUDED_LABELS.has(name.toLowerCase()))
+                    .map((name) => targetLabelByName.get(name.toLowerCase()))
+                    .filter((id): id is string => !!id);
+
                 await client.createIssue(projectId, {
                     name: routine.name,
                     description_html: descHtml,
                     state: todoState.id,
                     priority: routine.priority,
                     target_date: today,
+                    labels: questLabels,
                 } as any);
             }
         }

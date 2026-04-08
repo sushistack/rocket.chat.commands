@@ -214,6 +214,10 @@ export class ActionHandler {
             const todayDate = new Date(today + 'T12:00:00+09:00');
             const todayDay = dayNames[todayDate.getUTCDay()];
 
+            const targetLabels = await client.listLabels(projectId);
+            const targetLabelByName = new Map(targetLabels.map((l) => [l.name.toLowerCase(), l.id]));
+            const EXCLUDED_LABELS = new Set(['on', 'off']);
+
             // Get Done issues to avoid re-creating already completed ones
             const doneSourceIds = new Set(
                 todayItems
@@ -228,6 +232,7 @@ export class ActionHandler {
                 const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
                 if (!routineLabel) continue;
                 const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
+                const sourceLabelById = new Map(labels.map((l) => [l.id, l.name]));
 
                 const issues = await client.listIssues(project.id);
                 const routineIssues = issues.filter((i) => {
@@ -256,12 +261,19 @@ export class ActionHandler {
                     const descHtml = PlaneClient.setMeta(
                         `<p>${routine.name}</p>`, questMeta);
 
+                    const questLabels = routine.labels
+                        .map((id) => sourceLabelById.get(id))
+                        .filter((name): name is string => !!name && !EXCLUDED_LABELS.has(name.toLowerCase()))
+                        .map((name) => targetLabelByName.get(name.toLowerCase()))
+                        .filter((id): id is string => !!id);
+
                     await client.createIssue(projectId, {
                         name: routine.name,
                         description_html: descHtml,
                         state: todoState.id,
                         priority: routine.priority,
                         target_date: today,
+                        labels: questLabels,
                     } as any);
                     copiedCount++;
                 }

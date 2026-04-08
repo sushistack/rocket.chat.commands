@@ -91,6 +91,10 @@ export class GenerateCommand implements ISlashCommand {
                         .filter(Boolean),
                 );
 
+                const targetLabels = await client.listLabels(projectId);
+                const targetLabelByName = new Map(targetLabels.map((l) => [l.name.toLowerCase(), l.id]));
+                const EXCLUDED_LABELS = new Set(['on', 'off']);
+
                 const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
                 const todayDate = new Date(today + 'T12:00:00+09:00');
                 const todayDay = dayNames[todayDate.getUTCDay()];
@@ -101,6 +105,7 @@ export class GenerateCommand implements ISlashCommand {
                     const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
                     if (!routineLabel) continue;
                     const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
+                    const sourceLabelById = new Map(labels.map((l) => [l.id, l.name]));
 
                     const issues = await client.listIssues(project.id);
                     const routineIssues = issues.filter((i) => {
@@ -129,12 +134,19 @@ export class GenerateCommand implements ISlashCommand {
                         const descHtml = PlaneClient.setMeta(
                             `<p>${routine.name}</p>`, questMeta);
 
+                        const questLabels = routine.labels
+                            .map((id) => sourceLabelById.get(id))
+                            .filter((name): name is string => !!name && !EXCLUDED_LABELS.has(name.toLowerCase()))
+                            .map((name) => targetLabelByName.get(name.toLowerCase()))
+                            .filter((id): id is string => !!id);
+
                         await client.createIssue(projectId, {
                             name: routine.name,
                             description_html: descHtml,
                             state: todoState.id,
                             priority: routine.priority,
                             target_date: today,
+                            labels: questLabels,
                         } as any);
                         copiedCount++;
                     }
