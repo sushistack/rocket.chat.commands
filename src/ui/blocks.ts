@@ -406,7 +406,11 @@ export function buildReportAttachments(
         attachments.push({
             color: '#95a5a6',
             title: { value: '📝 미완료' },
-            text: incompleteNames.map((n) => `• ${n}`).join('\n'),
+            fields: incompleteNames.map((n) => ({
+                title: `• ${n}`,
+                value: '',
+                short: false,
+            })),
         });
     }
 
@@ -420,36 +424,37 @@ export function buildHelpAttachments(): IMessageAttachment[] {
         {
             color: '#3498db',
             title: { value: '📋 일일 퀘스트' },
-            text: [
-                '`/today` — 오늘의 퀘스트 현황',
-                '`/add {이름} {시간} {소요}` — 태스크 추가',
-                '`/complete` — 퀘스트 완료 (버튼)',
-                '`/cancel` — 퀘스트 취소 (버튼)',
-                '`/defer` — 퀘스트 연기 (버튼)',
-                '`/restore` — 연기된 퀘스트 복원 (버튼)',
-                '`/start` — 퀘스트 시작 (버튼)',
-                '`/swap {A} {B}` — 시간 교환',
-                '`/memo {번호} {내용}` — 메모 추가',
-            ].join('\n'),
+            fields: [
+                { title: '/today', value: '오늘의 퀘스트 현황', short: true },
+                { title: '/add {이름} {시간} {소요}', value: '태스크 추가', short: true },
+                { title: '/complete', value: '퀘스트 완료 (버튼)', short: true },
+                { title: '/cancel', value: '퀘스트 취소 (버튼)', short: true },
+                { title: '/defer', value: '퀘스트 연기 (버튼)', short: true },
+                { title: '/restore', value: '연기 퀘스트 복원', short: true },
+                { title: '/start', value: '퀘스트 시작 (버튼)', short: true },
+                { title: '/swap {A} {B}', value: '시간 교환', short: true },
+                { title: '/memo {번호} {내용}', value: '메모 추가', short: true },
+                { title: '/focus {대상} {시간}', value: '포커스 모드', short: true },
+            ],
         },
         {
             color: '#f39c12',
             title: { value: '📊 조회/분석' },
-            text: [
-                '`/brief [all]` — 마일스톤 브리핑',
-                '`/stats [N]` — 최근 N일 통계',
-                '`/deferred` — 연기된 퀘스트 목록',
-                '`/weekly` — 주간 리포트',
-                '`/report` — 일일 리포트',
-            ].join('\n'),
+            fields: [
+                { title: '/brief [all]', value: '마일스톤 브리핑', short: true },
+                { title: '/stats [N]', value: '최근 N일 통계', short: true },
+                { title: '/deferred', value: '연기 퀘스트 목록', short: true },
+                { title: '/weekly', value: '주간 리포트', short: true },
+                { title: '/report', value: '일일 리포트', short: true },
+            ],
         },
         {
             color: '#2ecc71',
             title: { value: '⚙️ 생성/관리' },
-            text: [
-                '`/gen` — 오늘 퀘스트 생성 (루틴 복사)',
-                '`/regen` — 퀘스트 초기화 후 재생성',
-            ].join('\n'),
+            fields: [
+                { title: '/gen', value: '퀘스트 생성 (루틴 복사)', short: true },
+                { title: '/regen', value: '초기화 후 재생성', short: true },
+            ],
         },
     ];
 }

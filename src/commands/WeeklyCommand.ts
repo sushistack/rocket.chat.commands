@@ -107,7 +107,7 @@ export class WeeklyCommand implements ISlashCommand {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

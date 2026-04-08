@@ -68,19 +68,20 @@ export class DeferredCleanup implements IProcessor {
 
             // Post weekly report if there's anything to report
             if (report.length > 0) {
-                let text = `🧹 주간 Deferred 정리 리포트 (${today})\n\n`;
-                text += `총 연기 태스크: ${deferredIssues.length}개\n`;
-                if (autoCancelled > 0) {
-                    text += `자동 취소: ${autoCancelled}개\n`;
-                }
-                text += '\n' + report.join('\n');
-                text += '\n\n💡 LLM 기반 판단은 추후 n8n에서 연동 예정입니다.';
-
+                const summaryText = report.join('\n');
                 const generalRoom = await read.getRoomReader().getByName('general');
                 if (generalRoom) {
                     const msg = modify.getCreator().startMessage()
                         .setRoom(generalRoom)
-                        .setText(text);
+                        .setAttachments([{
+                            color: '#9b59b6',
+                            title: { value: `🧹 주간 Deferred 정리 (${today})` },
+                            text: summaryText,
+                            fields: [
+                                { title: '총 연기', value: `${deferredIssues.length}`, short: true },
+                                { title: '자동 취소', value: `${autoCancelled}`, short: true },
+                            ],
+                        }]);
                     await modify.getCreator().finish(msg);
                 }
             }

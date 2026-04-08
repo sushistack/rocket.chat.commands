@@ -32,7 +32,7 @@ export class AddCommand implements ISlashCommand {
             if (args.length === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('⚠️ 사용법: `/add {태스크명} {시작시간} {소요시간}`\n예: `/add 코드리뷰 14:00 1h30m`\n시작시간/소요시간은 생략 가능 (기본: 시간 미정, 30분)');
+                    .setAttachments([{ color: '#f39c12', text: '⚠️ 사용법: `/add {태스크명} {시작시간} {소요시간}`\n예: `/add 코드리뷰 14:00 1h30m`' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -75,7 +75,7 @@ export class AddCommand implements ISlashCommand {
             if (!unstartedState) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('❌ "unstarted" 상태를 찾을 수 없습니다. Plane 프로젝트 설정을 확인해주세요.');
+                    .setAttachments([{ color: '#e74c3c', text: '❌ unstarted 상태를 찾을 수 없습니다.' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -108,7 +108,7 @@ export class AddCommand implements ISlashCommand {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

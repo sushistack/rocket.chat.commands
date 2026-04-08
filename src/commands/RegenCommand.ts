@@ -32,7 +32,7 @@ export class RegenCommand implements ISlashCommand {
             if (deletable.length === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('ℹ️ 삭제할 미완료 퀘스트가 없습니다.');
+                    .setAttachments([{ color: '#3498db', text: 'ℹ️ 삭제할 미완료 퀘스트가 없습니다.' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -49,14 +49,14 @@ export class RegenCommand implements ISlashCommand {
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText('🔄 퀘스트 재생성')
+                .setAttachments([{ color: '#3498db', text: '🔄 퀘스트 재생성' }])
                 .setBlocks(block);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

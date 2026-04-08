@@ -36,7 +36,7 @@ export class RestoreCommand implements ISlashCommand {
             if (deferredStateIds.size === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('⚠️ Deferred 상태를 찾을 수 없어요.');
+                    .setAttachments([{ color: '#f39c12', text: '⚠️ Deferred 상태를 찾을 수 없어요.' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -56,7 +56,7 @@ export class RestoreCommand implements ISlashCommand {
             if (deferredItems.length === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('✅ 복원할 연기된 퀘스트가 없어요!');
+                    .setAttachments([{ color: '#2ecc71', text: '✅ 복원할 연기된 퀘스트가 없어요!' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -83,14 +83,14 @@ export class RestoreCommand implements ISlashCommand {
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText('🔄 복원할 퀘스트를 선택하세요:')
+                .setAttachments([{ color: '#3498db', text: '🔄 복원할 퀘스트를 선택하세요:' }])
                 .setBlocks(block);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

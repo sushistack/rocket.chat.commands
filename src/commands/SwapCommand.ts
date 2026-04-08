@@ -27,7 +27,7 @@ export class SwapCommand implements ISlashCommand {
             if (args.length < 2) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('⚠️ 사용법: `/swap {번호A} {번호B}` (예: `/swap 1 3`)');
+                    .setAttachments([{ color: '#f39c12', text: '⚠️ 사용법: `/swap {번호A} {번호B}` (예: `/swap 1 3`)' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -38,7 +38,7 @@ export class SwapCommand implements ISlashCommand {
             if (isNaN(numA) || isNaN(numB) || numA < 1 || numB < 1) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('⚠️ 유효한 번호를 입력해주세요. (예: `/swap 1 3`)');
+                    .setAttachments([{ color: '#f39c12', text: '⚠️ 유효한 번호를 입력해주세요.' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -46,7 +46,7 @@ export class SwapCommand implements ISlashCommand {
             if (numA === numB) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('⚠️ 서로 다른 번호를 입력해주세요.');
+                    .setAttachments([{ color: '#f39c12', text: '⚠️ 서로 다른 번호를 입력해주세요.' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -69,7 +69,7 @@ export class SwapCommand implements ISlashCommand {
             if (numA > max || numB > max) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText(`⚠️ 번호는 1~${max} 사이여야 합니다. (현재 활성 퀘스트: ${max}개)`);
+                    .setAttachments([{ color: '#f39c12', text: `⚠️ 번호는 1~${max} 사이여야 합니다.` }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -84,7 +84,7 @@ export class SwapCommand implements ISlashCommand {
             if (!timeA && !timeB) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('⚠️ 두 퀘스트 모두 예정 시간이 설정되어 있지 않아 교환할 수 없어요.');
+                    .setAttachments([{ color: '#f39c12', text: '⚠️ 시간이 설정되지 않아 교환할 수 없어요.' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -105,15 +105,13 @@ export class SwapCommand implements ISlashCommand {
             const displayTimeB = formatTime(timeB);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(
-                    `🔄 '${itemA.issue.name}'(${displayTimeA})와 '${itemB.issue.name}'(${displayTimeB})의 시간을 교환했어요!`,
-                );
+                .setAttachments([{ color: '#2ecc71', text: `🔄 '${itemA.issue.name}'(${displayTimeA}) ↔ '${itemB.issue.name}'(${displayTimeB}) 시간 교환 완료!` }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

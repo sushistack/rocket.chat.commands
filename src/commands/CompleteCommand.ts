@@ -34,7 +34,7 @@ export class CompleteCommand implements ISlashCommand {
             if (actionable.length === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('✅ 오늘의 모든 퀘스트가 완료되었어요!');
+                    .setAttachments([{ color: '#2ecc71', text: '✅ 오늘의 모든 퀘스트가 완료되었어요!' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -50,7 +50,7 @@ export class CompleteCommand implements ISlashCommand {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

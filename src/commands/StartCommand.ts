@@ -40,7 +40,7 @@ export class StartCommand implements ISlashCommand {
             if (!startedState) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('❌ "started" 상태를 찾을 수 없습니다. Plane 프로젝트 설정을 확인해주세요.');
+                    .setAttachments([{ color: '#e74c3c', text: '❌ started 상태를 찾을 수 없습니다.' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -50,7 +50,7 @@ export class StartCommand implements ISlashCommand {
                 if (todoItems.length === 0) {
                     const msg = modify.getCreator().startMessage()
                         .setRoom(context.getRoom())
-                        .setText('📝 시작할 수 있는 대기 중인 퀘스트가 없습니다.');
+                        .setAttachments([{ color: '#3498db', text: '📝 시작할 수 있는 대기 중인 퀘스트가 없습니다.' }]);
                     await modify.getCreator().finish(msg);
                     return;
                 }
@@ -85,7 +85,7 @@ export class StartCommand implements ISlashCommand {
             if (!matched) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText(`⚠️ '${arg}'에 해당하는 대기 중인 퀘스트를 찾을 수 없습니다.`);
+                    .setAttachments([{ color: "#f39c12", text: `⚠️ '${arg}'에 해당하는 퀘스트를 찾을 수 없습니다.` }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -115,13 +115,13 @@ export class StartCommand implements ISlashCommand {
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(text);
+                .setAttachments([{ color: "#f39c12", text }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

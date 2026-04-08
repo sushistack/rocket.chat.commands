@@ -26,7 +26,7 @@ export class FocusCommand implements ISlashCommand {
             if (args.length === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('⚠️ 사용법: `/focus {태스크명 또는 번호} {시간}` (예: `/focus 코드리뷰 30m`)');
+                    .setAttachments([{ color: '#f39c12', text: '⚠️ 사용법: `/focus {태스크명 또는 번호} {시간}`' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -72,7 +72,7 @@ export class FocusCommand implements ISlashCommand {
             if (!matched) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText(`⚠️ '${targetArg}'에 해당하는 퀘스트를 찾을 수 없습니다.`);
+                    .setAttachments([{ color: '#f39c12', text: `⚠️ '${targetArg}'에 해당하는 퀘스트를 찾을 수 없습니다.` }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -88,16 +88,13 @@ export class FocusCommand implements ISlashCommand {
             const durationDisplay = durationMin ? formatDuration(durationMin) : '지정 안 됨';
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(
-                    `🎯 '${matched.issue.name}' 포커스 모드 시작! (${durationDisplay})\n` +
-                    `⚠️ 타이머 기능은 추후 연동 예정입니다.`,
-                );
+                .setAttachments([{ color: '#f39c12', text: `🎯 '${matched.issue.name}' 포커스 모드 시작! (${durationDisplay})` }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }

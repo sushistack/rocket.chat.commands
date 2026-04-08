@@ -34,7 +34,7 @@ export class CancelCommand implements ISlashCommand {
             if (todoItems.length === 0) {
                 const msg = modify.getCreator().startMessage()
                     .setRoom(context.getRoom())
-                    .setText('✅ 취소할 대기 중인 퀘스트가 없어요!');
+                    .setAttachments([{ color: '#2ecc71', text: '✅ 취소할 대기 중인 퀘스트가 없어요!' }]);
                 await modify.getCreator().finish(msg);
                 return;
             }
@@ -50,7 +50,7 @@ export class CancelCommand implements ISlashCommand {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setText(`❌ Plane 연결 실패: ${errMsg}`);
+                .setAttachments([{ color: '#e74c3c', text: `❌ Plane 연결 실패: ${errMsg}` }]);
             await modify.getCreator().finish(msg);
         }
     }
