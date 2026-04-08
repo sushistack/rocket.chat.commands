@@ -199,7 +199,7 @@ export class DailyQuestGenerator implements IProcessor {
                 };
 
                 const descHtml = PlaneClient.setMeta(
-                    routine.description_html || `<p>${routine.name}</p>`,
+                    `<p>${routine.name}</p>`,
                     questMeta,
                 );
 

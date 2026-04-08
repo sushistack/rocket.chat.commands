@@ -254,7 +254,7 @@ export class ActionHandler {
                         source_issue_id: routine.id,
                     };
                     const descHtml = PlaneClient.setMeta(
-                        routine.description_html || `<p>${routine.name}</p>`, questMeta);
+                        `<p>${routine.name}</p>`, questMeta);
 
                     await client.createIssue(projectId, {
                         name: routine.name,
