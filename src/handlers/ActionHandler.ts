@@ -43,6 +43,9 @@ export class ActionHandler {
                 case 'regen':
                     await this.handleRegen(issueId, roomId);
                     break;
+                case 'delete':
+                    await this.handleDelete(issueId, roomId);
+                    break;
                 default:
                     break;
             }
@@ -287,6 +290,16 @@ export class ActionHandler {
         resultText += '\n💡 LLM 기반 추가 태스크 생성은 추후 연동 예정';
 
         await this.sendMessage(roomId, resultText);
+    }
+
+    private async handleDelete(issueId: string, roomId: string): Promise<void> {
+        const client = await getPlaneClient(this.read, this.http);
+        const projectId = await getRoutineProjectId(this.read);
+
+        const issue = await client.getIssue(projectId, issueId);
+        await client.deleteIssue(projectId, issueId);
+
+        await this.sendMessage(roomId, `🗑️ "${issue.name}" 퀘스트를 삭제했어요.`, '#e74c3c');
     }
 
     private async sendMessage(roomId: string, text: string, color: string = '#3498db'): Promise<void> {

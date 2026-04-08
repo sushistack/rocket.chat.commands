@@ -38,6 +38,7 @@ import { RegenCommand } from './src/commands/RegenCommand';
 import { HelpCommand } from './src/commands/HelpCommand';
 import { GenerateCommand } from './src/commands/GenerateCommand';
 import { ReportCommand } from './src/commands/ReportCommand';
+import { DeleteCommand } from './src/commands/DeleteCommand';
 
 // Schedulers
 import { DailyQuestGenerator } from './src/schedulers/DailyQuestGenerator';
@@ -73,6 +74,7 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         await configuration.slashCommands.provideSlashCommand(new HelpCommand());
         await configuration.slashCommands.provideSlashCommand(new GenerateCommand());
         await configuration.slashCommands.provideSlashCommand(new ReportCommand());
+        await configuration.slashCommands.provideSlashCommand(new DeleteCommand());
 
         // Register schedulers
         await configuration.scheduler.registerProcessors([

@@ -19,14 +19,18 @@ export function buildIssueButtonList(
     actionPrefix: string,
     header?: string,
 ): void {
+    // Sort by scheduled_time
+    const sorted = [...items].sort((a, b) =>
+        (a.meta.scheduled_time || '99:99').localeCompare(b.meta.scheduled_time || '99:99'),
+    );
     if (header) {
         block.addSectionBlock({
             text: block.newMarkdownTextObject(header),
         });
         block.addDividerBlock();
     }
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+    for (let i = 0; i < sorted.length; i++) {
+        const item = sorted[i];
         const p = priorityEmoji(item.issue.priority);
         const time = item.meta.scheduled_time;
         const dur = item.meta.adjusted_duration_min;
@@ -197,9 +201,12 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
         { key: 'cancelled', emoji: '❌', label: 'Canceled', color: '#e74c3c' },
     ];
 
+    const sortByTime = (a: IssueDisplayItem, b: IssueDisplayItem) =>
+        (a.meta.scheduled_time || '99:99').localeCompare(b.meta.scheduled_time || '99:99');
+
     let idx = 1;
     for (const { key, emoji, label, color: groupColor } of groupConfig) {
-        const groupItems = grouped.get(key) || [];
+        const groupItems = (grouped.get(key) || []).sort(sortByTime);
         if (groupItems.length === 0) continue;
 
         const lines = groupItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
@@ -211,6 +218,7 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
     }
 
     if (deferredItems.length > 0) {
+        deferredItems.sort(sortByTime);
         const lines = deferredItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
         attachments.push({
             color: '#9b59b6',
@@ -434,7 +442,7 @@ export function buildHelpAttachments(): IMessageAttachment[] {
                 { title: '/start', value: '퀘스트 시작 (버튼)', short: true },
                 { title: '/swap {A} {B}', value: '시간 교환', short: true },
                 { title: '/memo {번호} {내용}', value: '메모 추가', short: true },
-                { title: '/focus {대상} {시간}', value: '포커스 모드', short: true },
+                { title: '/delete', value: '퀘스트 삭제 (버튼)', short: true },
             ],
         },
         {
