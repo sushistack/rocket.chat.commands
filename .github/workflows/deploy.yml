@@ -55,8 +55,12 @@ jobs:
           fi
           echo "Deploying $ZIP_FILE"
 
-          # Upload update via REST API
-          RESULT=$(curl -s -X POST "$RC_URL/api/apps" \
+          # Read app ID from app.json
+          APP_ID=$(jq -r '.id' app.json)
+          echo "App ID: $APP_ID"
+
+          # Upload update via REST API (POST to /api/apps/{appId})
+          RESULT=$(curl -s -X POST "$RC_URL/api/apps/$APP_ID" \
             -H "X-Auth-Token: $TOKEN" \
             -H "X-User-Id: $USER_ID" \
             -F "app=@$ZIP_FILE")
