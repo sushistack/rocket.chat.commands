@@ -259,14 +259,20 @@ export class PlaneClient {
             }
         }
 
-        // Fallback: JSON in <code> block (manual metadata format)
-        const codeMatch = descriptionHtml.match(/<code>\s*(\{[\s\S]*?\})\s*<\/code>/);
+        // Fallback: JSON in <code> or <pre> block (manual metadata format)
+        const codeMatch = descriptionHtml.match(/<code[^>]*>\s*(\{[\s\S]*?\})\s*<\/code>/);
         if (codeMatch) {
             try {
                 return JSON.parse(codeMatch[1]);
-            } catch {
-                return {};
-            }
+            } catch { /* fall through */ }
+        }
+
+        // Fallback: raw JSON block anywhere in HTML
+        const jsonMatch = descriptionHtml.match(/\{[^{}]*"routine_type"[^{}]*\}/);
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch { /* fall through */ }
         }
 
         return {};
