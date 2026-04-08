@@ -1,5 +1,9 @@
+import { IPersistence, IPersistenceRead } from '@rocket.chat/apps-engine/definition/accessors';
+import { RocketChatAssociationModel, RocketChatAssociationRecord } from '@rocket.chat/apps-engine/definition/metadata';
 import { PlaneClient } from './PlaneClient';
 import { PlaneCycle, PlaneModule, PulsarMeta } from './types';
+
+const PROGRESS_KEY = new RocketChatAssociationRecord(RocketChatAssociationModel.MISC, 'pulsar-progress');
 
 export interface ProgressResult {
     id: string;
@@ -173,4 +177,21 @@ function computeForPeriod(
         completedCount,
         rate,
     };
+}
+
+/**
+ * 계산 결과를 Persistence에 저장
+ */
+export async function saveProgress(persis: IPersistence, results: ProgressResult[]): Promise<void> {
+    await persis.updateByAssociation(PROGRESS_KEY, { results, updatedAt: new Date().toISOString() }, true);
+}
+
+/**
+ * Persistence에서 저장된 진행도 읽기
+ */
+export async function loadProgress(persisRead: IPersistenceRead): Promise<ProgressResult[]> {
+    const records = await persisRead.readByAssociation(PROGRESS_KEY);
+    if (records.length === 0) return [];
+    const data = records[0] as { results?: ProgressResult[] };
+    return data.results || [];
 }

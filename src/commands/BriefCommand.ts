@@ -8,7 +8,7 @@ import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/def
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { dDay } from '../ui/formatters';
 import { buildBriefAttachments } from '../ui/blocks';
-import { calculateProgress } from '../plane/progress';
+import { calculateProgress, loadProgress, saveProgress, ProgressResult } from '../plane/progress';
 
 export class BriefCommand implements ISlashCommand {
     public command = 'brief';
@@ -24,15 +24,19 @@ export class BriefCommand implements ISlashCommand {
         persis: IPersistence,
     ): Promise<void> {
         try {
-            const client = await getPlaneClient(read, http);
-            const routineProjectId = await getRoutineProjectId(read);
             const args = context.getArguments();
             const showAll = args.length > 0 && args[0].toLowerCase() === 'all';
 
-            // 루틴 기반 진행도 계산
-            const progressResults = await calculateProgress(client, routineProjectId);
+            // 먼저 저장된 값 읽기, 없으면 실시간 계산 후 저장
+            let progressResults: ProgressResult[] = await loadProgress(read.getPersistenceReader());
 
-            // Sort by endDate ascending
+            if (progressResults.length === 0) {
+                const client = await getPlaneClient(read, http);
+                const routineProjectId = await getRoutineProjectId(read);
+                progressResults = await calculateProgress(client, routineProjectId);
+                await saveProgress(persis, progressResults);
+            }
+
             progressResults.sort((a, b) => a.endDate.localeCompare(b.endDate));
 
             const limit = showAll ? progressResults.length : 5;

@@ -2,7 +2,7 @@ import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/de
 import { IJobContext, IProcessor } from '@rocket.chat/apps-engine/definition/scheduler';
 import { getPlaneClient, getRoutineProjectId } from '../commands/_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
-import { calculateProgress } from '../plane/progress';
+import { calculateProgress, saveProgress } from '../plane/progress';
 import { PulsarMeta, PlaneIssue, PlaneState } from '../plane/types';
 import { todayString } from '../ui/formatters';
 
@@ -27,7 +27,9 @@ export class DailyQuestGenerator implements IProcessor {
             await this.step2DeferOverdue(client, projectId, states, today);
             await this.step3CopyRoutines(client, projectId, states, today);
             await this.step4CancelStaleDeferred(client, projectId, states, today);
-            await calculateProgress(client, projectId); // Step 5: warm up / validate
+            // Step 5: 계산 후 Persistence에 저장
+            const progressResults = await calculateProgress(client, projectId);
+            await saveProgress(persis, progressResults);
         } catch (error) {
             // Scheduler errors are logged by the engine
         }
