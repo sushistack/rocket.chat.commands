@@ -45,7 +45,7 @@ import { DailySummaryReporter } from './src/schedulers/DailySummaryReporter';
 import { DeferredCleanup } from './src/schedulers/DeferredCleanup';
 import { StartupType } from '@rocket.chat/apps-engine/definition/scheduler';
 
-export class DailyForgeApp extends App implements IUIKitInteractionHandler {
+export class PulsarApp extends App implements IUIKitInteractionHandler {
     constructor(info: IAppInfo, logger: ILogger, accessors: IAppAccessors) {
         super(info, logger, accessors);
     }

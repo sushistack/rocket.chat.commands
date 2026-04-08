@@ -1,8 +1,8 @@
 {
-    "name": "dailyforge",
+    "name": "pulsar",
     "version": "0.1.0",
     "description": "Rocket.Chat slash commands for Plane.so daily quest management",
-    "main": "DailyForgeApp.ts",
+    "main": "PulsarApp.ts",
     "scripts": {
         "build": "tsc",
         "deploy": "rc-apps deploy",

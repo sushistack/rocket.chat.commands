@@ -1,0 +1,26 @@
+name: Deploy RC App
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm test
+
+      - name: Deploy to Rocket.Chat
+        run: npx @rocket.chat/apps-cli deploy --url ${{ secrets.RC_SERVER_URL }} --username ${{ secrets.RC_USER }} --password ${{ secrets.RC_PASSWORD }} --update

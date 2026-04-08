@@ -5,7 +5,7 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { getPlaneClient, getRoutineProjectId } from '../commands/_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
-import { DailyForgeMeta } from '../plane/types';
+import { PulsarMeta } from '../plane/types';
 import { nowTimeString, todayString } from '../ui/formatters';
 
 export class ActionHandler {
@@ -242,7 +242,7 @@ export class ActionHandler {
                     if (meta.routine_active_until && meta.routine_active_until < today) continue;
                     if (meta.routine_type === 'weekly' && meta.routine_days && !meta.routine_days.includes(todayDay)) continue;
 
-                    const questMeta: DailyForgeMeta = {
+                    const questMeta: PulsarMeta = {
                         ...meta,
                         quest_date: today,
                         scheduled_time: meta.routine_time,

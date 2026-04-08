@@ -1,6 +1,6 @@
 import { IHttp, IHttpRequest } from '@rocket.chat/apps-engine/definition/accessors';
 import {
-    DailyForgeMeta,
+    PulsarMeta,
     PaginatedResponse,
     PlaneComment,
     PlaneCycle,
@@ -233,9 +233,9 @@ export class PlaneClient {
         return kst.toISOString().split('T')[0];
     }
 
-    // ─── DailyForge Meta (embedded in description_html) ───
+    // ─── Pulsar Meta (embedded in description_html) ───
 
-    static parseMeta(descriptionHtml: string | undefined | null): DailyForgeMeta {
+    static parseMeta(descriptionHtml: string | undefined | null): PulsarMeta {
         if (!descriptionHtml) return {};
 
         const match = descriptionHtml.match(META_REGEX);
@@ -250,7 +250,7 @@ export class PlaneClient {
         return {};
     }
 
-    static setMeta(descriptionHtml: string | undefined | null, meta: DailyForgeMeta): string {
+    static setMeta(descriptionHtml: string | undefined | null, meta: PulsarMeta): string {
         const metaTag = `<details><summary>meta</summary><code>${META_PREFIX}${JSON.stringify(meta)}</code></details>`;
         const base = descriptionHtml || '';
 
@@ -263,7 +263,7 @@ export class PlaneClient {
 
     // ─── Convenience: filter issues by today ───
 
-    async getTodayIssues(projectId: string, states: PlaneState[]): Promise<{ issue: PlaneIssue; state: PlaneState; meta: DailyForgeMeta }[]> {
+    async getTodayIssues(projectId: string, states: PlaneState[]): Promise<{ issue: PlaneIssue; state: PlaneState; meta: PulsarMeta }[]> {
         const today = PlaneClient.todayKST();
         const issues = await this.listIssues(projectId);
         const stateMap = new Map(states.map((s) => [s.id, s]));
@@ -281,7 +281,7 @@ export class PlaneClient {
             .filter((item) => item.state);
     }
 
-    async getIssuesByStateGroup(projectId: string, group: PlaneState['group']): Promise<{ issue: PlaneIssue; state: PlaneState; meta: DailyForgeMeta }[]> {
+    async getIssuesByStateGroup(projectId: string, group: PlaneState['group']): Promise<{ issue: PlaneIssue; state: PlaneState; meta: PulsarMeta }[]> {
         const states = await this.listStates(projectId);
         const groupStates = states.filter((s) => s.group === group);
         const groupStateIds = new Set(groupStates.map((s) => s.id));

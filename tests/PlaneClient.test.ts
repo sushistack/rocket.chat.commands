@@ -29,7 +29,7 @@ describe('PlaneClient.parseMeta', () => {
         expect(PlaneClient.parseMeta(html)).toEqual({});
     });
 
-    it('parses all DailyForgeMeta fields', () => {
+    it('parses all PulsarMeta fields', () => {
         const meta = {
             quest_date: '2026-04-07',
             scheduled_time: '09:00',

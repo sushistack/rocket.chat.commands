@@ -1,4 +1,4 @@
-import { DailyForgeMeta, PlaneIssue, PlaneState } from '../plane/types';
+import { PulsarMeta, PlaneIssue, PlaneState } from '../plane/types';
 
 const PRIORITY_EMOJI: Record<string, string> = {
     urgent: '🔴',
@@ -95,7 +95,7 @@ export function dDay(targetDate: string): string {
 export interface IssueDisplayItem {
     issue: PlaneIssue;
     state: PlaneState;
-    meta: DailyForgeMeta;
+    meta: PulsarMeta;
 }
 
 export function formatIssueOneLiner(item: IssueDisplayItem, index: number): string {

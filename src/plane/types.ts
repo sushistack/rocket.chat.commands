@@ -80,7 +80,7 @@ export interface PlaneComment {
     updated_at: string;
 }
 
-export interface DailyForgeMeta {
+export interface PulsarMeta {
     quest_date?: string;
     scheduled_time?: string;
     adjusted_duration_min?: number;

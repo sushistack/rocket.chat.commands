@@ -2,7 +2,7 @@ import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/de
 import { IJobContext, IProcessor } from '@rocket.chat/apps-engine/definition/scheduler';
 import { getPlaneClient, getRoutineProjectId } from '../commands/_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
-import { DailyForgeMeta, PlaneIssue, PlaneState } from '../plane/types';
+import { PulsarMeta, PlaneIssue, PlaneState } from '../plane/types';
 import { todayString } from '../ui/formatters';
 
 export class DailyQuestGenerator implements IProcessor {
@@ -184,7 +184,7 @@ export class DailyQuestGenerator implements IProcessor {
                 if (meta.routine_type === 'weekly' && meta.routine_days && !meta.routine_days.includes(todayDay)) continue;
 
                 // Preserve all routine metadata via spread
-                const questMeta: DailyForgeMeta = {
+                const questMeta: PulsarMeta = {
                     ...meta,
                     quest_date: today,
                     scheduled_time: meta.routine_time,

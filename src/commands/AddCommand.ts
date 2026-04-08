@@ -7,7 +7,7 @@ import {
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
-import { DailyForgeMeta } from '../plane/types';
+import { PulsarMeta } from '../plane/types';
 import { parseDuration, formatDuration, todayString, nowTimeString } from '../ui/formatters';
 
 const DEFAULT_DURATION_MIN = 30;
@@ -81,7 +81,7 @@ export class AddCommand implements ISlashCommand {
             }
 
             // Build meta
-            const meta: DailyForgeMeta = {
+            const meta: PulsarMeta = {
                 quest_date: today,
                 scheduled_time: scheduledTime,
                 adjusted_duration_min: durationMin,
