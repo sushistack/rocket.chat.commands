@@ -209,37 +209,21 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
         const groupItems = (grouped.get(key) || []).sort(sortByTime);
         if (groupItems.length === 0) continue;
 
+        const lines = groupItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
         attachments.push({
             color: groupColor,
-            title: { value: `${emoji} ${label} (${groupItems.length})` },
-            fields: groupItems.map((item) => {
-                const p = priorityEmoji(item.issue.priority);
-                const time = item.meta.scheduled_time || '--:--';
-                const dur = item.meta.adjusted_duration_min ? `${item.meta.adjusted_duration_min}m` : '';
-                const defer = item.meta.defer_count ? ` 🔄${item.meta.defer_count}` : '';
-                return {
-                    title: `${idx++}. ${p} ${item.issue.name}`,
-                    value: `${time} ${dur}${defer}`,
-                    short: true,
-                };
-            }),
+            title: { value: `${emoji} ${label}` },
+            text: lines,
         });
     }
 
     if (deferredItems.length > 0) {
         deferredItems.sort(sortByTime);
+        const lines = deferredItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
         attachments.push({
             color: '#9b59b6',
-            title: { value: `⏸️ Deferred (${deferredItems.length})` },
-            fields: deferredItems.map((item) => {
-                const p = priorityEmoji(item.issue.priority);
-                const defer = item.meta.defer_count ? `🔄${item.meta.defer_count}` : '';
-                return {
-                    title: `${idx++}. ${p} ${item.issue.name}`,
-                    value: `${item.meta.original_quest_date || '--'} ${defer}`,
-                    short: true,
-                };
-            }),
+            title: { value: '⏸️ Deferred' },
+            text: lines,
         });
     }
 
