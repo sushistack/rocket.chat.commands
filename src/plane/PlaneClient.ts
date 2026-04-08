@@ -287,7 +287,7 @@ export class PlaneClient {
 
     static setMeta(descriptionHtml: string | undefined | null, meta: PulsarMeta): string {
         const json = JSON.stringify(meta, null, 2);
-        const metaTag = `<pre><code>${META_PREFIX}${json}</code></pre>`;
+        const metaTag = `<pre><code class="language-json">${META_PREFIX}${json}</code></pre>`;
         const base = descriptionHtml || '';
 
         // Remove existing meta blocks (both legacy and new format)

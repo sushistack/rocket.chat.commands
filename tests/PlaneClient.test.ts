@@ -57,7 +57,7 @@ describe('PlaneClient.setMeta', () => {
         const result = PlaneClient.setMeta('', { quest_date: '2026-04-07' });
         expect(result).toContain('DFMETA:');
         expect(result).toContain('"quest_date": "2026-04-07"');
-        expect(result).toContain('<pre><code>');
+        expect(result).toContain('<pre><code class="language-json">');
     });
 
     it('appends meta to existing description', () => {
