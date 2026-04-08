@@ -25,9 +25,49 @@ jobs:
       - name: Remove test files before packaging
         run: rm -rf tests
 
-      - name: Deploy to Rocket.Chat
+      - name: Package app
+        run: npx @rocket.chat/apps-cli package
+
+      - name: Deploy via RC REST API
         env:
           RC_URL: ${{ secrets.RC_SERVER_URL }}
           RC_USER: ${{ secrets.RC_USER }}
           RC_PASS: ${{ secrets.RC_PASSWORD }}
-        run: npx @rocket.chat/apps-cli deploy --url "$RC_URL" --username "$RC_USER" --password "$RC_PASS" --update --verbose
+        run: |
+          # Login
+          LOGIN=$(curl -s "$RC_URL/api/v1/login" \
+            -d "user=$RC_USER&password=$RC_PASS")
+          TOKEN=$(echo "$LOGIN" | jq -r '.data.authToken')
+          USER_ID=$(echo "$LOGIN" | jq -r '.data.userId')
+
+          if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+            echo "Login failed"
+            echo "$LOGIN"
+            exit 1
+          fi
+
+          # Find the zip file
+          ZIP_FILE=$(ls *.zip 2>/dev/null | head -1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No zip file found"
+            exit 1
+          fi
+          echo "Deploying $ZIP_FILE"
+
+          # Upload update via REST API
+          RESULT=$(curl -s -X POST "$RC_URL/api/apps" \
+            -H "X-Auth-Token: $TOKEN" \
+            -H "X-User-Id: $USER_ID" \
+            -F "app=@$ZIP_FILE")
+
+          echo "$RESULT" | jq .
+
+          STATUS=$(echo "$RESULT" | jq -r '.app.status // .success // "unknown"')
+          echo "Deploy status: $STATUS"
+
+          if echo "$RESULT" | jq -e '.app' > /dev/null 2>&1; then
+            echo "Deploy successful"
+          else
+            echo "Deploy may have failed"
+            exit 1
+          fi
