@@ -156,8 +156,8 @@ export class DailyQuestGenerator implements IProcessor {
         );
 
         const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-        const todayDate = new Date(today + 'T00:00:00+09:00');
-        const todayDay = dayNames[todayDate.getDay()];
+        const todayDate = new Date(today + 'T12:00:00+09:00');
+        const todayDay = dayNames[todayDate.getUTCDay()];
 
         for (const project of projects) {
             if (project.id === projectId) continue;

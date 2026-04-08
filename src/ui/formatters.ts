@@ -78,8 +78,8 @@ export function nowTimeString(): string {
 
 export function dayOfWeek(dateStr: string): string {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
-    const d = new Date(dateStr + 'T00:00:00+09:00');
-    return days[d.getDay()];
+    const d = new Date(dateStr + 'T12:00:00+09:00');
+    return days[d.getUTCDay()];
 }
 
 export function dDay(targetDate: string): string {

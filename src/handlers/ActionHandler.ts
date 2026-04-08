@@ -210,8 +210,8 @@ export class ActionHandler {
             const today = todayString();
             const projects = await client.listProjects();
             const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-            const todayDate = new Date(today + 'T00:00:00+09:00');
-            const todayDay = dayNames[todayDate.getDay()];
+            const todayDate = new Date(today + 'T12:00:00+09:00');
+            const todayDay = dayNames[todayDate.getUTCDay()];
 
             // Get Done issues to avoid re-creating already completed ones
             const doneSourceIds = new Set(

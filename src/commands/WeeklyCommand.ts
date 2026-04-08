@@ -33,8 +33,8 @@ export class WeeklyCommand implements ISlashCommand {
 
             // Calculate Mon-Sun of current week
             const today = todayString();
-            const todayDate = new Date(today + 'T00:00:00+09:00');
-            const dayIdx = todayDate.getDay(); // 0=Sun, 1=Mon, ...
+            const todayDate = new Date(today + 'T12:00:00+09:00');
+            const dayIdx = todayDate.getUTCDay(); // 0=Sun, 1=Mon, ...
             const mondayOffset = dayIdx === 0 ? -6 : 1 - dayIdx;
             const monday = new Date(todayDate);
             monday.setDate(monday.getDate() + mondayOffset);
