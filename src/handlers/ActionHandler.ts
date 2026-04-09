@@ -81,7 +81,8 @@ export class ActionHandler {
             color: '#2ecc71',
             text: `✅ "${issue.name}" 완료! 🎉`,
             fields: [
-                { title: '📋 남은 퀘스트', value: `${remaining}개`, short: true },
+                { title: '📋 전체 퀘스트', value: `${todayItems.length}개`, short: true },
+                { title: '📝 남은 퀘스트', value: `${remaining}개`, short: true },
             ],
         });
     }
