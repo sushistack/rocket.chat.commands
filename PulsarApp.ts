@@ -92,10 +92,10 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         const scheduler = configurationModify.scheduler;
 
         // 서버 TZ=Asia/Seoul → cron은 KST 기준으로 해석됨
-        // W1: Daily quest generator — 매일 00:00 KST
+        // W1: Daily quest generator — 매일 00:01 KST (cleanup과 겹침 방지)
         await scheduler.scheduleRecurring({
             id: 'daily-quest-generator',
-            interval: '0 0 * * *',
+            interval: '1 0 * * *',
         });
 
         // W3: Daily summary reporter — 매일 23:00 KST
