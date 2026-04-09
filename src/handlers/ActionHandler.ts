@@ -72,7 +72,7 @@ export class ActionHandler {
 
         // Count remaining actionable issues
         const states = await client.listStates(projectId);
-        const todayItems = await client.getTodayIssues(projectId, states);
+        const { items: todayItems } = await client.getTodayIssues(projectId, states);
         const remaining = todayItems.filter(
             (item) => item.state.group === 'unstarted' || item.state.group === 'started',
         ).length;
@@ -204,7 +204,7 @@ export class ActionHandler {
         const client = await getPlaneClient(this.read, this.http);
         const projectId = await getRoutineProjectId(this.read);
         const states = await client.listStates(projectId);
-        const todayItems = await client.getTodayIssues(projectId, states);
+        const { items: todayItems } = await client.getTodayIssues(projectId, states);
         const deletable = todayItems.filter((item) => item.state.group !== 'completed');
 
         let deleted = 0;

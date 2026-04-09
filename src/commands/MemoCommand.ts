@@ -34,7 +34,7 @@ export class MemoCommand implements ISlashCommand {
             const client = await getPlaneClient(read, http);
             const projectId = await getRoutineProjectId(read);
             const states = await client.listStates(projectId);
-            const todayItems = await client.getTodayIssues(projectId, states);
+            const { items: todayItems } = await client.getTodayIssues(projectId, states);
 
             // Determine target and content
             let matched: IssueDisplayItem | undefined;

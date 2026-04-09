@@ -303,12 +303,24 @@ export class PlaneClient {
 
     // ─── Convenience: filter issues by today ───
 
-    async getTodayIssues(projectId: string, states: PlaneState[]): Promise<{ issue: PlaneIssue; state: PlaneState; meta: PulsarMeta }[]> {
+    async getTodayIssues(projectId: string, states: PlaneState[]): Promise<{
+        items: { issue: PlaneIssue; state: PlaneState; meta: PulsarMeta }[];
+        globalCounts: { deferred: number; cancelled: number };
+    }> {
         const today = PlaneClient.todayKST();
         const issues = await this.listIssues(projectId);
         const stateMap = new Map(states.map((s) => [s.id, s]));
 
-        return issues
+        let globalDeferred = 0;
+        let globalCancelled = 0;
+        for (const issue of issues) {
+            const state = stateMap.get(issue.state);
+            if (!state) continue;
+            if (state.name.toLowerCase().includes('deferred')) globalDeferred++;
+            else if (state.group === 'cancelled') globalCancelled++;
+        }
+
+        const items = issues
             .filter((i) => {
                 const meta = PlaneClient.parseMeta(i.description_html);
                 return i.target_date === today || meta.quest_date === today;
@@ -319,6 +331,8 @@ export class PlaneClient {
                 meta: PlaneClient.parseMeta(issue.description_html),
             }))
             .filter((item) => item.state);
+
+        return { items, globalCounts: { deferred: globalDeferred, cancelled: globalCancelled } };
     }
 
     async getIssuesByStateGroup(projectId: string, group: PlaneState['group']): Promise<{ issue: PlaneIssue; state: PlaneState; meta: PulsarMeta }[]> {

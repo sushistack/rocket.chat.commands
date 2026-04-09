@@ -139,7 +139,7 @@ export class DailyQuestGenerator implements IProcessor {
         today: string,
     ): Promise<void> {
         // Idempotency check
-        const todayItems = await client.getTodayIssues(projectId, states);
+        const { items: todayItems } = await client.getTodayIssues(projectId, states);
         const alreadyGenerated = todayItems.some(
             (item) => item.meta.generation_source === 'routine_copy',
         );

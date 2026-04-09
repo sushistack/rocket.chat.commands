@@ -54,7 +54,7 @@ export class SwapCommand implements ISlashCommand {
             const client = await getPlaneClient(read, http);
             const projectId = await getRoutineProjectId(read);
             const states = await client.listStates(projectId);
-            const todayItems = await client.getTodayIssues(projectId, states);
+            const { items: todayItems } = await client.getTodayIssues(projectId, states);
 
             // Filter to To-Do + In Progress, sort by scheduled_time
             const actionable = todayItems

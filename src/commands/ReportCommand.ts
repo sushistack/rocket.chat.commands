@@ -28,7 +28,7 @@ export class ReportCommand implements ISlashCommand {
             const today = todayString();
             const dow = dayOfWeek(today);
             const states = await client.listStates(projectId);
-            const todayItems = await client.getTodayIssues(projectId, states);
+            const { items: todayItems } = await client.getTodayIssues(projectId, states);
 
             const total = todayItems.length;
             if (total === 0) {

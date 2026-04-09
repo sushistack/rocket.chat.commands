@@ -25,7 +25,7 @@ export class CompleteCommand implements ISlashCommand {
             const client = await getPlaneClient(read, http);
             const projectId = await getRoutineProjectId(read);
             const states = await client.listStates(projectId);
-            const todayItems = await client.getTodayIssues(projectId, states);
+            const { items: todayItems } = await client.getTodayIssues(projectId, states);
 
             const actionable = todayItems.filter(
                 (item) => item.state.group === 'unstarted' || item.state.group === 'started',

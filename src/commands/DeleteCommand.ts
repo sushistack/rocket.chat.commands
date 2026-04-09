@@ -25,7 +25,7 @@ export class DeleteCommand implements ISlashCommand {
             const client = await getPlaneClient(read, http);
             const projectId = await getRoutineProjectId(read);
             const states = await client.listStates(projectId);
-            const todayItems = await client.getTodayIssues(projectId, states);
+            const { items: todayItems } = await client.getTodayIssues(projectId, states);
 
             // 완료된 것 제외, 나머지 삭제 가능
             const deletable = todayItems.filter(

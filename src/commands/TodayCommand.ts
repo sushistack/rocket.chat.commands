@@ -25,9 +25,9 @@ export class TodayCommand implements ISlashCommand {
             const client = await getPlaneClient(read, http);
             const projectId = await getRoutineProjectId(read);
             const states = await client.listStates(projectId);
-            const items = await client.getTodayIssues(projectId, states);
+            const { items, globalCounts } = await client.getTodayIssues(projectId, states);
 
-            const attachments = buildTodaySummaryAttachments(items);
+            const attachments = buildTodaySummaryAttachments(items, globalCounts);
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
                 .setAttachments(attachments);

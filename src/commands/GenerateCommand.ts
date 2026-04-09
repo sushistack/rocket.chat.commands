@@ -30,7 +30,7 @@ export class GenerateCommand implements ISlashCommand {
             const states = await client.listStates(projectId);
 
             // Idempotency: check if today's quests already exist
-            const existingTodayItems = await client.getTodayIssues(projectId, states);
+            const { items: existingTodayItems } = await client.getTodayIssues(projectId, states);
             const alreadyGenerated = existingTodayItems.some(
                 (item) => item.meta.generation_source === 'routine_copy',
             );
