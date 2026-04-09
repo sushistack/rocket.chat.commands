@@ -431,12 +431,7 @@ export function buildReportAttachments(
     if (incompleteNames.length > 0) {
         attachments.push({
             color: '#95a5a6',
-            text: '📝 미완료',
-            fields: incompleteNames.map((n) => ({
-                title: `• ${n}`,
-                value: '',
-                short: false,
-            })),
+            text: `📝 미완료\n${incompleteNames.map((n) => `• ${n}`).join('\n')}`,
         });
     }
 
