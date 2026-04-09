@@ -31,7 +31,7 @@ export class DailyQuestGenerator implements IProcessor {
             const progressResults = await calculateProgress(client, projectId);
             await saveProgress(persis, progressResults);
         } catch (error) {
-            // Scheduler errors are logged by the engine
+            throw error; // Re-throw so the engine logs the failure
         }
     }
 

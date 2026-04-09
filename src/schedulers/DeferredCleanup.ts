@@ -86,7 +86,7 @@ export class DeferredCleanup implements IProcessor {
                 }
             }
         } catch (error) {
-            // Scheduler errors are logged by the engine
+            throw error;
         }
     }
 }

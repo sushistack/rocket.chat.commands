@@ -52,7 +52,7 @@ export class DailySummaryReporter implements IProcessor {
                 await modify.getCreator().finish(msg);
             }
         } catch (error) {
-            // Scheduler errors are logged by the engine
+            throw error;
         }
     }
 }
