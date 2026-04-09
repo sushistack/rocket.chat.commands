@@ -75,9 +75,9 @@ export class DeferredCleanup implements IProcessor {
                         .setRoom(generalRoom)
                         .setAttachments([{
                             color: '#9b59b6',
-                            title: { value: `🧹 주간 Deferred 정리 (${today})` },
-                            text: summaryText,
+                            text: `🧹 주간 Deferred 정리 (${today})`,
                             fields: [
+                                { title: '📋 상세', value: summaryText, short: false },
                                 { title: '총 연기', value: `${deferredIssues.length}`, short: true },
                                 { title: '자동 취소', value: `${autoCancelled}`, short: true },
                             ],

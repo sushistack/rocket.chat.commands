@@ -53,20 +53,25 @@ export function buildIssueButtonList(
     }
 }
 
-export function buildTodaySummaryBlocks(block: BlockBuilder, items: IssueDisplayItem[]): void {
+export function buildTodaySummaryBlocks(
+    block: BlockBuilder,
+    items: IssueDisplayItem[],
+    globalCounts?: { deferred: number; cancelled: number },
+): void {
     const today = todayString();
     const dow = dayOfWeek(today);
     const total = items.length;
     const done = items.filter((i) => i.state.group === 'completed').length;
-    const deferred = items.filter((i) => i.state.name.toLowerCase().includes('deferred')).length;
-    const cancelled = items.filter((i) => i.state.group === 'cancelled').length;
     const todo = items.filter((i) =>
         (i.state.group === 'unstarted' || i.state.group === 'backlog') && !i.state.name.toLowerCase().includes('deferred'),
     ).length;
-    const inProgress = items.filter((i) => i.state.group === 'started').length;
     const remaining = items
         .filter((i) => i.state.group !== 'completed' && i.state.group !== 'cancelled')
         .reduce((sum, i) => sum + (i.meta.adjusted_duration_min || 0), 0);
+    const deferred = globalCounts?.deferred
+        ?? items.filter((i) => i.state.name.toLowerCase().includes('deferred')).length;
+    const cancelled = globalCounts?.cancelled
+        ?? items.filter((i) => i.state.group === 'cancelled').length;
     const rate = total > 0 ? Math.round((done / total) * 100) : 0;
     const bar = progressBar(rate / 100, 15);
 
@@ -87,8 +92,9 @@ export function buildTodaySummaryBlocks(block: BlockBuilder, items: IssueDisplay
     // Stats
     block.addSectionBlock({
         text: block.newMarkdownTextObject(
-            `All: *${total}*  ✅ Done: *${done}*  📝 To-Do: *${todo}*  🔄 In Progress: *${inProgress}*\n` +
-            `⏸️ Deferred: *${deferred}*  ❌ Canceled: *${cancelled}*  ⏱️ Remaining: *${formatDuration(remaining)}*`,
+            `📋 All: *${total}*  📝 To-Do: *${todo}*\n` +
+            `✅ Done: *${done}*  ⏱️ Remaining: *${formatDuration(remaining)}*\n` +
+            `⏸️ Deferred: *${deferred}*  ❌ Canceled: *${cancelled}*`,
         ),
     });
 
@@ -143,20 +149,24 @@ export function buildTodaySummaryBlocks(block: BlockBuilder, items: IssueDisplay
     }
 }
 
-export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessageAttachment[] {
+export function buildTodaySummaryAttachments(
+    items: IssueDisplayItem[],
+    globalCounts?: { deferred: number; cancelled: number },
+): IMessageAttachment[] {
     const today = todayString();
     const dow = dayOfWeek(today);
     const total = items.length;
     const done = items.filter((i) => i.state.group === 'completed').length;
-    const deferred = items.filter((i) => i.state.name.toLowerCase().includes('deferred')).length;
-    const cancelled = items.filter((i) => i.state.group === 'cancelled').length;
     const todo = items.filter((i) =>
         (i.state.group === 'unstarted' || i.state.group === 'backlog') && !i.state.name.toLowerCase().includes('deferred'),
     ).length;
-    const inProgress = items.filter((i) => i.state.group === 'started').length;
     const remaining = items
         .filter((i) => i.state.group !== 'completed' && i.state.group !== 'cancelled')
         .reduce((sum, i) => sum + (i.meta.adjusted_duration_min || 0), 0);
+    const deferred = globalCounts?.deferred
+        ?? items.filter((i) => i.state.name.toLowerCase().includes('deferred')).length;
+    const cancelled = globalCounts?.cancelled
+        ?? items.filter((i) => i.state.group === 'cancelled').length;
     const rate = total > 0 ? Math.round((done / total) * 100) : 0;
     const bar = progressBar(rate / 100, 15);
 
@@ -168,12 +178,11 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
     // Summary card
     attachments.push({
         color,
-        title: { value: `📋 ${today} (${dow}) 오늘의 퀘스트` },
-        text: `${bar}  **${rate}%**`,
+        text: `📋 ${today} (${dow}) 오늘의 퀘스트\n${bar}  **${rate}%**`,
         fields: [
-            { title: '✅ Done', value: `${done}`, short: true },
+            { title: '📋 All', value: `${total}`, short: true },
             { title: '📝 To-Do', value: `${todo}`, short: true },
-            { title: '🔄 In Progress', value: `${inProgress}`, short: true },
+            { title: '✅ Done', value: `${done}`, short: true },
             { title: '⏱️ Remaining', value: formatDuration(remaining), short: true },
             { title: '⏸️ Deferred', value: `${deferred}`, short: true },
             { title: '❌ Canceled', value: `${cancelled}`, short: true },
@@ -212,8 +221,7 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
         const lines = groupItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
         attachments.push({
             color: groupColor,
-            title: { value: `${emoji} ${label}` },
-            text: lines,
+            text: `${emoji} ${label}\n${lines}`,
         });
     }
 
@@ -222,8 +230,7 @@ export function buildTodaySummaryAttachments(items: IssueDisplayItem[]): IMessag
         const lines = deferredItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
         attachments.push({
             color: '#9b59b6',
-            title: { value: '⏸️ Deferred' },
-            text: lines,
+            text: `⏸️ Deferred\n${lines}`,
         });
     }
 
@@ -258,8 +265,7 @@ export function buildBriefAttachments(
     if (cycles.length === 0) {
         attachments.push({
             color: '#95a5a6',
-            title: { value: `🎯 마일스톤 브리핑 (${label})` },
-            text: '📭 진행 중인 마일스톤이 없습니다.',
+            text: `🎯 마일스톤 브리핑 (${label})\n📭 진행 중인 마일스톤이 없습니다.`,
         });
         return attachments;
     }
@@ -267,7 +273,7 @@ export function buildBriefAttachments(
     // Header card
     attachments.push({
         color: '#9b59b6',
-        title: { value: `🎯 마일스톤 브리핑 (${label})` },
+        text: `🎯 마일스톤 브리핑 (${label})`,
     });
 
     // Each cycle/module as its own card
@@ -277,8 +283,7 @@ export function buildBriefAttachments(
 
         attachments.push({
             color,
-            title: { value: `${typeTag} [${c.projectName}] ${c.name}` },
-            text: `${progressBar(c.pct / 100, 20)}  **${c.pct}%**`,
+            text: `${typeTag} [${c.projectName}] ${c.name}\n${progressBar(c.pct / 100, 20)}  **${c.pct}%**`,
             fields: [
                 { title: '📅 D-Day', value: c.dDayStr, short: true },
                 { title: '📆 Due', value: c.dateStr, short: true },
@@ -306,8 +311,7 @@ export function buildStatsAttachments(
     // Daily breakdown
     attachments.push({
         color: '#3498db',
-        title: { value: `📊 루틴 통계 (최근 ${days}일)` },
-        text: dailyLines.join('\n'),
+        text: `📊 루틴 통계 (최근 ${days}일)\n${dailyLines.join('\n')}`,
     });
 
     // Aggregate
@@ -317,23 +321,21 @@ export function buildStatsAttachments(
     ];
     attachments.push({
         color: '#f39c12',
-        title: { value: '📈 종합' },
+        text: '📈 종합',
         fields,
     });
 
     if (topDeferred.length > 0) {
         attachments.push({
             color: '#9b59b6',
-            title: { value: '⏸️ 가장 많이 연기된 퀘스트' },
-            text: topDeferred.map(([name, count], i) => `${i + 1}. ${name} (${count}회)`).join('\n'),
+            text: `⏸️ 가장 많이 연기된 퀘스트\n${topDeferred.map(([name, count], i) => `${i + 1}. ${name} (${count}회)`).join('\n')}`,
         });
     }
 
     if (topCompleted.length > 0) {
         attachments.push({
             color: '#2ecc71',
-            title: { value: '✅ 가장 많이 완료된 퀘스트' },
-            text: topCompleted.map(([name, count], i) => `${i + 1}. ${name} (${count}회)`).join('\n'),
+            text: `✅ 가장 많이 완료된 퀘스트\n${topCompleted.map(([name, count], i) => `${i + 1}. ${name} (${count}회)`).join('\n')}`,
         });
     }
 
@@ -355,13 +357,12 @@ export function buildWeeklyAttachments(
 
     attachments.push({
         color: '#3498db',
-        title: { value: `📅 주간 회고 (${weekStart} ~ ${weekEnd})` },
-        text: dailyLines.join('\n'),
+        text: `📅 주간 회고 (${weekStart} ~ ${weekEnd})\n${dailyLines.join('\n')}`,
     });
 
     attachments.push({
         color: '#f39c12',
-        title: { value: '📊 주간 종합' },
+        text: '📊 주간 종합',
         fields: [
             { title: 'Total', value: `${weekTotal}`, short: true },
             { title: '✅ Done', value: `${weekDone}`, short: true },
@@ -390,8 +391,7 @@ export function buildDeferredAttachments(
 
     return [{
         color: '#9b59b6',
-        title: { value: `⏸️ 연기된 퀘스트 (${items.length}개)` },
-        text: lines.join('\n'),
+        text: `⏸️ 연기된 퀘스트 (${items.length}개)\n${lines.join('\n')}`,
     }];
 }
 
@@ -419,8 +419,7 @@ export function buildReportAttachments(
 
     attachments.push({
         color,
-        title: { value: `📊 ${today} (${dow}) 일일 리포트` },
-        text: `${progressBar(done / total, 15)}  **${rate}%** ${encouragement}`,
+        text: `📊 ${today} (${dow}) 일일 리포트\n${progressBar(done / total, 15)}  **${rate}%** ${encouragement}`,
         fields: [
             { title: '✅ Done', value: `${done}`, short: true },
             { title: '📝 Remaining', value: `${remaining}`, short: true },
@@ -432,7 +431,7 @@ export function buildReportAttachments(
     if (incompleteNames.length > 0) {
         attachments.push({
             color: '#95a5a6',
-            title: { value: '📝 미완료' },
+            text: '📝 미완료',
             fields: incompleteNames.map((n) => ({
                 title: `• ${n}`,
                 value: '',
@@ -450,7 +449,7 @@ export function buildHelpAttachments(): IMessageAttachment[] {
     return [
         {
             color: '#3498db',
-            title: { value: '📋 일일 퀘스트' },
+            text: '📋 일일 퀘스트',
             fields: [
                 { title: '/today', value: '오늘의 퀘스트 현황', short: true },
                 { title: '/add {이름} {시간} {소요}', value: '태스크 추가', short: true },
@@ -466,7 +465,7 @@ export function buildHelpAttachments(): IMessageAttachment[] {
         },
         {
             color: '#f39c12',
-            title: { value: '📊 조회/분석' },
+            text: '📊 조회/분석',
             fields: [
                 { title: '/brief [all]', value: '마일스톤 브리핑', short: true },
                 { title: '/stats [N]', value: '최근 N일 통계', short: true },
@@ -477,7 +476,7 @@ export function buildHelpAttachments(): IMessageAttachment[] {
         },
         {
             color: '#2ecc71',
-            title: { value: '⚙️ 생성/관리' },
+            text: '⚙️ 생성/관리',
             fields: [
                 { title: '/gen', value: '퀘스트 생성 (루틴 복사)', short: true },
                 { title: '/regen', value: '초기화 후 재생성', short: true },

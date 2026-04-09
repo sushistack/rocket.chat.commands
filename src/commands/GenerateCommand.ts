@@ -39,7 +39,7 @@ export class GenerateCommand implements ISlashCommand {
                     .setRoom(context.getRoom())
                     .setAttachments([{
                         color: '#f39c12',
-                        title: { value: `ℹ️ 오늘의 퀘스트가 이미 생성되어 있어요. (${existingTodayItems.length}개)` },
+                        text: `ℹ️ 오늘의 퀘스트가 이미 생성되어 있어요. (${existingTodayItems.length}개)`,
                         fields: [
                             { title: '💡 Tip', value: '/regen 으로 초기화 가능', short: false },
                         ],
@@ -164,7 +164,7 @@ export class GenerateCommand implements ISlashCommand {
 
             const msg = modify.getCreator().startMessage()
                 .setRoom(context.getRoom())
-                .setAttachments([{ color: '#2ecc71', title: { value: '🔨 퀘스트 생성 완료!' }, fields }]);
+                .setAttachments([{ color: '#2ecc71', text: '🔨 퀘스트 생성 완료!', fields }]);
             await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);

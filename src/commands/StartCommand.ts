@@ -114,7 +114,7 @@ export class StartCommand implements ISlashCommand {
                 .setRoom(context.getRoom())
                 .setAttachments([{
                     color: '#f39c12',
-                    title: { value: `▶️ '${matched.issue.name}' 시작!` },
+                    text: `▶️ '${matched.issue.name}' 시작!`,
                     fields: fields.length > 0 ? fields : undefined,
                 }]);
             await modify.getCreator().finish(msg);

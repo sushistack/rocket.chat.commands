@@ -34,7 +34,7 @@ export class AddCommand implements ISlashCommand {
                     .setRoom(context.getRoom())
                     .setAttachments([{
                         color: '#f39c12',
-                        title: { value: '⚠️ 사용법' },
+                        text: '⚠️ 사용법',
                         fields: [
                             { title: '/add {태스크명} {시작시간} {소요시간}', value: '예: /add 코드리뷰 14:00 1h30m', short: false },
                         ],

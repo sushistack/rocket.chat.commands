@@ -79,7 +79,7 @@ export class ActionHandler {
 
         await this.sendAttachment(roomId, {
             color: '#2ecc71',
-            title: { value: `✅ "${issue.name}" 완료! 🎉` },
+            text: `✅ "${issue.name}" 완료! 🎉`,
             fields: [
                 { title: '📋 남은 퀘스트', value: `${remaining}개`, short: true },
             ],
@@ -145,7 +145,7 @@ export class ActionHandler {
         }
         await this.sendAttachment(roomId, {
             color: '#9b59b6',
-            title: { value: `⏸️ "${issue.name}" 연기` },
+            text: `⏸️ "${issue.name}" 연기`,
             fields,
         });
     }
@@ -298,7 +298,7 @@ export class ActionHandler {
 
         await this.sendAttachment(roomId, {
             color: '#2ecc71',
-            title: { value: '🔄 퀘스트 재생성 완료' },
+            text: '🔄 퀘스트 재생성 완료',
             fields,
         });
     }
