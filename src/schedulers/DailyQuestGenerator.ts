@@ -151,10 +151,9 @@ export class DailyQuestGenerator implements IProcessor {
         if (!todoState) return;
 
         const projects = await client.listProjects();
-        const existingIssues = await client.listIssues(projectId);
         const existingSourceIds = new Set(
-            existingIssues
-                .map((i) => PlaneClient.parseMeta(i.description_html).source_issue_id)
+            todayItems
+                .map((item) => item.meta.source_issue_id)
                 .filter(Boolean),
         );
 

@@ -90,10 +90,9 @@ export class GenerateCommand implements ISlashCommand {
 
             if (todoState) {
                 const projects = await client.listProjects();
-                const existingIssues = await client.listIssues(projectId);
                 const existingSourceIds = new Set(
-                    existingIssues
-                        .map((i) => PlaneClient.parseMeta(i.description_html).source_issue_id)
+                    existingTodayItems
+                        .map((item) => item.meta.source_issue_id)
                         .filter(Boolean),
                 );
 
