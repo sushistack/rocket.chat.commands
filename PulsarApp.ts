@@ -1,8 +1,6 @@
 import {
     IAppAccessors,
     IConfigurationExtend,
-    IConfigurationModify,
-    IEnvironmentRead,
     IHttp,
     ILogger,
     IModify,
@@ -40,11 +38,9 @@ import { GenerateCommand } from './src/commands/GenerateCommand';
 import { ReportCommand } from './src/commands/ReportCommand';
 import { DeleteCommand } from './src/commands/DeleteCommand';
 
-// Schedulers
-import { DailyQuestGenerator } from './src/schedulers/DailyQuestGenerator';
-import { DailySummaryReporter } from './src/schedulers/DailySummaryReporter';
-import { DeferredCleanup } from './src/schedulers/DeferredCleanup';
-import { StartupType } from '@rocket.chat/apps-engine/definition/scheduler';
+// API
+import { ApiSecurity, ApiVisibility } from '@rocket.chat/apps-engine/definition/api';
+import { SchedulerTriggerEndpoint } from './src/api/SchedulerTriggerEndpoint';
 
 export class PulsarApp extends App implements IUIKitInteractionHandler {
     constructor(info: IAppInfo, logger: ILogger, accessors: IAppAccessors) {
@@ -76,40 +72,15 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         await configuration.slashCommands.provideSlashCommand(new ReportCommand());
         await configuration.slashCommands.provideSlashCommand(new DeleteCommand());
 
-        // Register schedulers
-        await configuration.scheduler.registerProcessors([
-            new DailyQuestGenerator(),
-            new DailySummaryReporter(),
-            new DeferredCleanup(),
-        ]);
+        // Register API endpoints (n8n triggers schedulers via HTTP)
+        await configuration.api.provideApi({
+            visibility: ApiVisibility.PUBLIC,
+            security: ApiSecurity.UNSECURE,
+            endpoints: [new SchedulerTriggerEndpoint(this)],
+        });
     }
 
-    public async onEnable(
-        environment: IEnvironmentRead,
-        configurationModify: IConfigurationModify,
-    ): Promise<boolean> {
-        // Schedule cron jobs (KST = UTC+9, so 00:00 KST = 15:00 UTC prev day)
-        const scheduler = configurationModify.scheduler;
-
-        // 서버 TZ=Asia/Seoul → cron은 KST 기준으로 해석됨
-        // W1: Daily quest generator — 매일 00:01 KST (cleanup과 겹침 방지)
-        await scheduler.scheduleRecurring({
-            id: 'daily-quest-generator',
-            interval: '1 0 * * *',
-        });
-
-        // W3: Daily summary reporter — 매일 23:00 KST
-        await scheduler.scheduleRecurring({
-            id: 'daily-summary-reporter',
-            interval: '0 23 * * *',
-        });
-
-        // W4: Deferred cleanup — 매주 일요일 00:00 KST
-        await scheduler.scheduleRecurring({
-            id: 'deferred-cleanup',
-            interval: '0 0 * * 0',
-        });
-
+    public async onEnable(): Promise<boolean> {
         return true;
     }
 
