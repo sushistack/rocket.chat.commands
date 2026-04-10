@@ -5,6 +5,7 @@ export enum AppSetting {
     PlaneApiKey = 'plane_api_key',
     PlaneWorkspaceSlug = 'plane_workspace_slug',
     RoutineProjectId = 'routine_project_id',
+    TriggerSecret = 'trigger_secret',
 }
 
 export const settings: ISetting[] = [
@@ -43,5 +44,14 @@ export const settings: ISetting[] = [
         public: false,
         i18nLabel: 'Routine Project ID',
         i18nDescription: '일일 퀘스트 전용 루틴 프로젝트 ID',
+    },
+    {
+        id: AppSetting.TriggerSecret,
+        type: SettingType.STRING,
+        packageValue: '',
+        required: true,
+        public: false,
+        i18nLabel: 'Trigger Secret',
+        i18nDescription: 'n8n 등 외부에서 스케줄러를 트리거할 때 사용하는 시크릿 토큰',
     },
 ];

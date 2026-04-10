@@ -3,6 +3,7 @@ import { IApiEndpointInfo } from '@rocket.chat/apps-engine/definition/api/IApiEn
 import { IApiRequest } from '@rocket.chat/apps-engine/definition/api/IRequest';
 import { IApiResponse } from '@rocket.chat/apps-engine/definition/api/IResponse';
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
+import { AppSetting } from '../settings';
 import { DailyQuestGenerator } from '../schedulers/DailyQuestGenerator';
 import { DailySummaryReporter } from '../schedulers/DailySummaryReporter';
 import { DeferredCleanup } from '../schedulers/DeferredCleanup';
@@ -24,6 +25,16 @@ export class SchedulerTriggerEndpoint extends ApiEndpoint {
         http: IHttp,
         persis: IPersistence,
     ): Promise<IApiResponse> {
+        // Verify trigger secret
+        const secret = await read.getEnvironmentReader().getSettings().getValueById(AppSetting.TriggerSecret);
+        const token = request.headers['x-trigger-secret'] || request.query?.secret;
+        if (!secret || token !== secret) {
+            return this.json({
+                status: 401 as any,
+                content: { success: false, error: 'Unauthorized' },
+            });
+        }
+
         const jobId = request.query?.job || request.content?.job;
 
         if (!jobId || !processors[jobId]) {
