@@ -69,15 +69,14 @@ export class RestoreCommand implements ISlashCommand {
                 const origDate = item.meta.original_quest_date || '?';
                 const label = `${p} ${item.issue.name} — 연기 ${deferCount}회 | 원래 날짜: ${origDate}`;
 
-                block.addActionsBlock({
-                    blockId: 'restore_block',
-                    elements: [
-                        block.newButtonElement({
-                            actionId: `restore_${item.issue.id}`,
-                            text: block.newPlainTextObject(label.substring(0, 75)),
-                            value: item.issue.id,
-                        }),
-                    ],
+                const truncated = label.length > 75 ? label.substring(0, 72) + '...' : label;
+                block.addSectionBlock({
+                    text: block.newMarkdownTextObject(truncated),
+                    accessory: block.newButtonElement({
+                        actionId: `restore_${item.issue.id}`,
+                        text: block.newPlainTextObject('복원'),
+                        value: item.issue.id,
+                    }),
                 });
             }
 

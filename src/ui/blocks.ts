@@ -40,15 +40,13 @@ export function buildIssueButtonList(
         const label = parts.join(' ');
         const truncated = label.length > 75 ? label.substring(0, 72) + '...' : label;
 
-        block.addActionsBlock({
-            blockId: `${actionPrefix}_block_${i}`,
-            elements: [
-                block.newButtonElement({
-                    actionId: `${actionPrefix}_${item.issue.id}`,
-                    text: block.newPlainTextObject(truncated),
-                    value: item.issue.id,
-                }),
-            ],
+        block.addSectionBlock({
+            text: block.newMarkdownTextObject(truncated),
+            accessory: block.newButtonElement({
+                actionId: `${actionPrefix}_${item.issue.id}`,
+                text: block.newPlainTextObject('선택'),
+                value: item.issue.id,
+            }),
         });
     }
 }
@@ -488,21 +486,19 @@ export function buildConfirmDialog(
 ): void {
     block.addSectionBlock({
         text: block.newMarkdownTextObject(message),
+        accessory: block.newButtonElement({
+            actionId: confirmActionId,
+            text: block.newPlainTextObject('✅ 확인'),
+            value: 'confirm',
+        }),
     });
-    block.addActionsBlock({
-        blockId: 'confirm_block',
-        elements: [
-            block.newButtonElement({
-                actionId: confirmActionId,
-                text: block.newPlainTextObject('✅ 확인'),
-                value: 'confirm',
-            }),
-            block.newButtonElement({
-                actionId: cancelActionId,
-                text: block.newPlainTextObject('❌ 취소'),
-                value: 'cancel',
-            }),
-        ],
+    block.addSectionBlock({
+        text: block.newMarkdownTextObject(' '),
+        accessory: block.newButtonElement({
+            actionId: cancelActionId,
+            text: block.newPlainTextObject('❌ 취소'),
+            value: 'cancel',
+        }),
     });
 }
 
