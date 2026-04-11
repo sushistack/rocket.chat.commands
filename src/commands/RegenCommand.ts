@@ -6,13 +6,15 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
-import { buildConfirmView } from '../ui/blocks';
+import { ActionHandler } from '../handlers/ActionHandler';
 
 export class RegenCommand implements ISlashCommand {
     public command = 'regen';
-    public i18nParamsExample = '';
+    public i18nParamsExample = 'confirm';
     public i18nDescription = '오늘의 퀘스트를 재생성합니다';
     public providesPreview = false;
+
+    constructor(private readonly app: any) {}
 
     public async executor(
         context: SlashCommandContext,
@@ -37,19 +39,21 @@ export class RegenCommand implements ISlashCommand {
                 return;
             }
 
-            const block = modify.getCreator().getBlockBuilder();
-            const view = buildConfirmView(
-                block,
-                `⚠️ Done을 제외한 오늘의 퀘스트 **${deletable.length}개**가 삭제됩니다. 진행할까요?\n\n` +
-                '> LLM 기반 자동 재생성은 추후 연동 예정입니다.\n' +
-                '> 삭제 후 `/add` 명령어로 수동 추가해주세요.',
-                `regen|${context.getRoom().id}`,
-                '퀘스트 재생성',
-            );
-            const triggerId = context.getTriggerId();
-            if (triggerId) {
-                await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
+            const arg = context.getArguments().join(' ').trim();
+
+            if (arg === 'confirm') {
+                const handler = new ActionHandler(this.app, read, http, modify);
+                await handler.handleAction('regen_confirm', context.getSender().id, context.getRoom().id);
+                return;
             }
+
+            const msg = modify.getCreator().startMessage()
+                .setRoom(context.getRoom())
+                .setAttachments([{
+                    color: '#f39c12',
+                    text: `⚠️  **퀘스트 재생성**\n\nDone을 제외한 오늘의 퀘스트 **${deletable.length}개**가 삭제됩니다.\n\n> \`/regen confirm\` 으로 진행`,
+                }]);
+            await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()

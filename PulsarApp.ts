@@ -57,20 +57,20 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         await configuration.slashCommands.provideSlashCommand(new TodayCommand());
         await configuration.slashCommands.provideSlashCommand(new BriefCommand());
         await configuration.slashCommands.provideSlashCommand(new StatsCommand());
-        await configuration.slashCommands.provideSlashCommand(new CompleteCommand());
-        await configuration.slashCommands.provideSlashCommand(new CancelCommand());
-        await configuration.slashCommands.provideSlashCommand(new DeferCommand());
-        await configuration.slashCommands.provideSlashCommand(new RestoreCommand());
+        await configuration.slashCommands.provideSlashCommand(new CompleteCommand(this));
+        await configuration.slashCommands.provideSlashCommand(new CancelCommand(this));
+        await configuration.slashCommands.provideSlashCommand(new DeferCommand(this));
+        await configuration.slashCommands.provideSlashCommand(new RestoreCommand(this));
         await configuration.slashCommands.provideSlashCommand(new AddCommand());
         await configuration.slashCommands.provideSlashCommand(new DeferredCommand());
         await configuration.slashCommands.provideSlashCommand(new WeeklyCommand());
         await configuration.slashCommands.provideSlashCommand(new SwapCommand());
         await configuration.slashCommands.provideSlashCommand(new MemoCommand());
-        await configuration.slashCommands.provideSlashCommand(new RegenCommand());
+        await configuration.slashCommands.provideSlashCommand(new RegenCommand(this));
         await configuration.slashCommands.provideSlashCommand(new HelpCommand());
         await configuration.slashCommands.provideSlashCommand(new GenerateCommand());
         await configuration.slashCommands.provideSlashCommand(new ReportCommand());
-        await configuration.slashCommands.provideSlashCommand(new DeleteCommand());
+        await configuration.slashCommands.provideSlashCommand(new DeleteCommand(this));
 
         // Register API endpoints (n8n triggers schedulers via HTTP)
         await configuration.api.provideApi({
@@ -125,31 +125,6 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         persistence: IPersistence,
         modify: IModify,
     ): Promise<IUIKitResponse> {
-        const data = context.getInteractionData();
-        const { view, user } = data;
-        const viewId = view.id;
-
-        // Parse viewId: action|roomId
-        const pipeIdx = viewId.indexOf('|');
-        if (pipeIdx === -1) return context.getInteractionResponder().successResponse();
-
-        const action = viewId.substring(0, pipeIdx);
-        const roomId = viewId.substring(pipeIdx + 1);
-
-        const handler = new ActionHandler(this, read, http, modify);
-
-        // Confirm modal (regen) — submit means confirm
-        if (action === 'regen') {
-            await handler.handleAction('regen_confirm', user.id, roomId);
-            return context.getInteractionResponder().successResponse();
-        }
-
-        // Quest select modals — extract selected issue from form state
-        const state = view.state as Record<string, Record<string, string>> | undefined;
-        const issueId = state?.quest_select_block?.selected_quest;
-        if (!issueId) return context.getInteractionResponder().successResponse();
-
-        await handler.handleAction(`${action}_${issueId}`, user.id, roomId);
         return context.getInteractionResponder().successResponse();
     }
 

@@ -6,13 +6,16 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
-import { buildIssueSelectView } from '../ui/blocks';
+import { formatIssuePickerList } from '../ui/blocks';
+import { ActionHandler } from '../handlers/ActionHandler';
 
 export class CompleteCommand implements ISlashCommand {
     public command = 'complete';
-    public i18nParamsExample = '';
+    public i18nParamsExample = '{번호}';
     public i18nDescription = '오늘의 퀘스트를 완료 처리합니다';
     public providesPreview = false;
+
+    constructor(private readonly app: any) {}
 
     public async executor(
         context: SlashCommandContext,
@@ -39,12 +42,23 @@ export class CompleteCommand implements ISlashCommand {
                 return;
             }
 
-            const block = modify.getCreator().getBlockBuilder();
-            const view = buildIssueSelectView(block, actionable, 'complete', '퀘스트 완료', context.getRoom().id);
-            const triggerId = context.getTriggerId();
-            if (triggerId) {
-                await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
+            const { sorted, text } = formatIssuePickerList(actionable);
+            const arg = context.getArguments().join(' ').trim();
+            const argNum = parseInt(arg, 10);
+
+            if (argNum >= 1 && argNum <= sorted.length) {
+                const handler = new ActionHandler(this.app, read, http, modify);
+                await handler.handleAction(`complete_${sorted[argNum - 1].issue.id}`, context.getSender().id, context.getRoom().id);
+                return;
             }
+
+            const msg = modify.getCreator().startMessage()
+                .setRoom(context.getRoom())
+                .setAttachments([{
+                    color: '#2ecc71',
+                    text: `✅  **완료할 퀘스트** (${sorted.length}개)\n\n${text}\n\n> \`/complete {번호}\` 로 선택`,
+                }]);
+            await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()

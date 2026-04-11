@@ -1,5 +1,4 @@
 import { BlockBuilder, BlockElementType, TextObjectType } from '@rocket.chat/apps-engine/definition/uikit';
-import { UIKitSurfaceType } from '@rocket.chat/apps-engine/definition/uikit';
 import { IMessageAttachment, IMessageAttachmentField } from '@rocket.chat/apps-engine/definition/messages';
 import {
     IssueDisplayItem,
@@ -14,83 +13,30 @@ import {
     formatIssueOneLiner,
 } from './formatters';
 
-// ─── Modal-based select view (mobile-friendly) ───
+// ─── Numbered issue picker (works on all platforms) ───
 
-export function buildSelectView(
-    block: BlockBuilder,
-    options: Array<{ text: string; value: string }>,
-    viewId: string,
-    title: string,
-) {
-    block.addInputBlock({
-        blockId: 'quest_select_block',
-        element: block.newStaticSelectElement({
-            actionId: 'selected_quest',
-            placeholder: block.newPlainTextObject('퀘스트를 선택하세요'),
-            options: options.map((opt) => ({
-                text: block.newPlainTextObject(opt.text),
-                value: opt.value,
-            })),
-        }),
-        label: block.newPlainTextObject('퀘스트'),
-    });
-
-    return {
-        type: UIKitSurfaceType.MODAL,
-        id: viewId,
-        title: block.newPlainTextObject(title),
-        blocks: block.getBlocks(),
-        submit: block.newButtonElement({ text: block.newPlainTextObject('확인') }),
-        close: block.newButtonElement({ text: block.newPlainTextObject('취소') }),
-    };
-}
-
-export function buildIssueSelectView(
-    block: BlockBuilder,
+export function formatIssuePickerList(
     items: IssueDisplayItem[],
-    actionPrefix: string,
-    title: string,
-    roomId: string,
-) {
+): { sorted: IssueDisplayItem[]; text: string } {
     const sorted = [...items].sort((a, b) =>
         (a.meta.scheduled_time || '99:99').localeCompare(b.meta.scheduled_time || '99:99'),
     );
-
-    const options = sorted.map((item) => {
+    const pad = sorted.length >= 10 ? 2 : 1;
+    const text = sorted.map((item, i) => {
+        const num = String(i + 1).padStart(pad, ' ');
         const p = priorityEmoji(item.issue.priority);
         const time = item.meta.scheduled_time;
         const dur = item.meta.adjusted_duration_min;
-        const parts = [p, item.issue.name];
-        if (time) parts.push(time);
-        if (dur) parts.push(`(${dur}분)`);
-        const label = parts.join(' ');
-        return {
-            text: label.length > 75 ? label.substring(0, 72) + '...' : label,
-            value: item.issue.id,
-        };
-    });
-
-    return buildSelectView(block, options, `${actionPrefix}|${roomId}`, title);
-}
-
-export function buildConfirmView(
-    block: BlockBuilder,
-    message: string,
-    viewId: string,
-    title: string,
-) {
-    block.addSectionBlock({
-        text: block.newMarkdownTextObject(message),
-    });
-
-    return {
-        type: UIKitSurfaceType.MODAL,
-        id: viewId,
-        title: block.newPlainTextObject(title),
-        blocks: block.getBlocks(),
-        submit: block.newButtonElement({ text: block.newPlainTextObject('✅ 확인') }),
-        close: block.newButtonElement({ text: block.newPlainTextObject('❌ 취소') }),
-    };
+        let line = `\`${num}\`  ${p} ${item.issue.name}`;
+        if (time || dur) {
+            const details: string[] = [];
+            if (time) details.push(time);
+            if (dur) details.push(`${dur}분`);
+            line += `  · ${details.join(' · ')}`;
+        }
+        return line;
+    }).join('\n');
+    return { sorted, text };
 }
 
 export function buildTodaySummaryBlocks(
@@ -488,14 +434,14 @@ export function buildHelpAttachments(): IMessageAttachment[] {
             fields: [
                 { title: '/today', value: '오늘의 퀘스트 현황', short: true },
                 { title: '/add {이름} {시간} {소요}', value: '태스크 추가', short: true },
-                { title: '/complete', value: '퀘스트 완료 (버튼)', short: true },
-                { title: '/cancel', value: '퀘스트 취소 (버튼)', short: true },
-                { title: '/defer', value: '퀘스트 연기 (버튼)', short: true },
-                { title: '/restore', value: '연기 퀘스트 복원', short: true },
-                { title: '/start', value: '퀘스트 시작 (버튼)', short: true },
+                { title: '/complete [N]', value: '퀘스트 완료', short: true },
+                { title: '/cancel [N]', value: '퀘스트 취소', short: true },
+                { title: '/defer [N]', value: '퀘스트 연기', short: true },
+                { title: '/restore [N]', value: '연기 퀘스트 복원', short: true },
+                { title: '/start [N]', value: '퀘스트 시작', short: true },
                 { title: '/swap {A} {B}', value: '시간 교환', short: true },
                 { title: '/memo {번호} {내용}', value: '메모 추가', short: true },
-                { title: '/delete', value: '퀘스트 삭제 (버튼)', short: true },
+                { title: '/delete [N]', value: '퀘스트 삭제', short: true },
             ],
         },
         {
@@ -514,7 +460,7 @@ export function buildHelpAttachments(): IMessageAttachment[] {
             text: '⚙️ 생성/관리',
             fields: [
                 { title: '/gen', value: '퀘스트 생성 (루틴 복사)', short: true },
-                { title: '/regen', value: '초기화 후 재생성', short: true },
+                { title: '/regen [confirm]', value: '초기화 후 재생성', short: true },
             ],
         },
     ];

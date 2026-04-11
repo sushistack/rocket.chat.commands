@@ -7,11 +7,11 @@ import {
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { nowTimeString, IssueDisplayItem } from '../ui/formatters';
-import { buildIssueSelectView } from '../ui/blocks';
+import { formatIssuePickerList } from '../ui/blocks';
 
 export class StartCommand implements ISlashCommand {
     public command = 'start';
-    public i18nParamsExample = '{task name or number}';
+    public i18nParamsExample = '{번호 또는 이름}';
     public i18nDescription = '태스크를 시작 상태로 변경합니다';
     public providesPreview = false;
 
@@ -45,22 +45,26 @@ export class StartCommand implements ISlashCommand {
                 return;
             }
 
-            // No argument: show interactive buttons
-            if (!arg) {
-                if (todoItems.length === 0) {
-                    const msg = modify.getCreator().startMessage()
-                        .setRoom(context.getRoom())
-                        .setAttachments([{ color: '#3498db', text: '📝 시작할 수 있는 대기 중인 퀘스트가 없습니다.' }]);
-                    await modify.getCreator().finish(msg);
-                    return;
-                }
+            if (todoItems.length === 0) {
+                const msg = modify.getCreator().startMessage()
+                    .setRoom(context.getRoom())
+                    .setAttachments([{ color: '#3498db', text: '📝 시작할 수 있는 대기 중인 퀘스트가 없습니다.' }]);
+                await modify.getCreator().finish(msg);
+                return;
+            }
 
-                const block = modify.getCreator().getBlockBuilder();
-                const view = buildIssueSelectView(block, todoItems, 'start', '퀘스트 시작', context.getRoom().id);
-                const triggerId = context.getTriggerId();
-                if (triggerId) {
-                    await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
-                }
+            const { sorted } = formatIssuePickerList(todoItems);
+
+            // No argument: show numbered list
+            if (!arg) {
+                const { text } = formatIssuePickerList(todoItems);
+                const msg = modify.getCreator().startMessage()
+                    .setRoom(context.getRoom())
+                    .setAttachments([{
+                        color: '#f39c12',
+                        text: `🚀  **시작할 퀘스트** (${sorted.length}개)\n\n${text}\n\n> \`/start {번호 또는 이름}\` 으로 선택`,
+                    }]);
+                await modify.getCreator().finish(msg);
                 return;
             }
 
@@ -68,11 +72,11 @@ export class StartCommand implements ISlashCommand {
             let matched: IssueDisplayItem | undefined;
             const argNum = parseInt(arg, 10);
 
-            if (!isNaN(argNum) && argNum >= 1 && argNum <= todoItems.length) {
-                matched = todoItems[argNum - 1];
+            if (!isNaN(argNum) && argNum >= 1 && argNum <= sorted.length) {
+                matched = sorted[argNum - 1];
             } else {
                 const lowerArg = arg.toLowerCase();
-                matched = todoItems.find((item) =>
+                matched = sorted.find((item) =>
                     item.issue.name.toLowerCase().includes(lowerArg),
                 );
             }

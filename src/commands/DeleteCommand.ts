@@ -6,13 +6,16 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
-import { buildIssueSelectView } from '../ui/blocks';
+import { formatIssuePickerList } from '../ui/blocks';
+import { ActionHandler } from '../handlers/ActionHandler';
 
 export class DeleteCommand implements ISlashCommand {
     public command = 'delete';
-    public i18nParamsExample = '';
+    public i18nParamsExample = '{번호}';
     public i18nDescription = '오늘의 퀘스트를 삭제합니다';
     public providesPreview = false;
+
+    constructor(private readonly app: any) {}
 
     public async executor(
         context: SlashCommandContext,
@@ -40,12 +43,23 @@ export class DeleteCommand implements ISlashCommand {
                 return;
             }
 
-            const block = modify.getCreator().getBlockBuilder();
-            const view = buildIssueSelectView(block, deletable, 'delete', '퀘스트 삭제', context.getRoom().id);
-            const triggerId = context.getTriggerId();
-            if (triggerId) {
-                await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
+            const { sorted, text } = formatIssuePickerList(deletable);
+            const arg = context.getArguments().join(' ').trim();
+            const argNum = parseInt(arg, 10);
+
+            if (argNum >= 1 && argNum <= sorted.length) {
+                const handler = new ActionHandler(this.app, read, http, modify);
+                await handler.handleAction(`delete_${sorted[argNum - 1].issue.id}`, context.getSender().id, context.getRoom().id);
+                return;
             }
+
+            const msg = modify.getCreator().startMessage()
+                .setRoom(context.getRoom())
+                .setAttachments([{
+                    color: '#e74c3c',
+                    text: `🗑️  **삭제할 퀘스트** (${sorted.length}개)\n\n${text}\n\n> \`/delete {번호}\` 로 선택`,
+                }]);
+            await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()
