@@ -486,19 +486,22 @@ export function buildConfirmDialog(
 ): void {
     block.addSectionBlock({
         text: block.newMarkdownTextObject(message),
-        accessory: block.newButtonElement({
-            actionId: confirmActionId,
-            text: block.newPlainTextObject('✅ 확인'),
-            value: 'confirm',
-        }),
     });
-    block.addSectionBlock({
-        text: block.newMarkdownTextObject(' '),
-        accessory: block.newButtonElement({
-            actionId: cancelActionId,
-            text: block.newPlainTextObject('❌ 취소'),
-            value: 'cancel',
-        }),
+    block.addDividerBlock();
+    block.addActionsBlock({
+        blockId: 'confirm_block',
+        elements: [
+            block.newButtonElement({
+                actionId: confirmActionId,
+                text: block.newPlainTextObject('✅ 확인'),
+                value: 'confirm',
+            }),
+            block.newButtonElement({
+                actionId: cancelActionId,
+                text: block.newPlainTextObject('❌ 취소'),
+                value: 'cancel',
+            }),
+        ],
     });
 }
 
