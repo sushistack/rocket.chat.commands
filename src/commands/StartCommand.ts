@@ -7,7 +7,7 @@ import {
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { nowTimeString, IssueDisplayItem } from '../ui/formatters';
-import { buildIssueButtonList } from '../ui/blocks';
+import { buildIssueSelectView } from '../ui/blocks';
 
 export class StartCommand implements ISlashCommand {
     public command = 'start';
@@ -55,17 +55,12 @@ export class StartCommand implements ISlashCommand {
                     return;
                 }
 
-                const msg = modify.getCreator().startMessage()
-                    .setRoom(context.getRoom());
-
                 const block = modify.getCreator().getBlockBuilder();
-                block.addSectionBlock({
-                    text: block.newMarkdownTextObject('🚀 시작할 퀘스트를 선택하세요:'),
-                });
-                buildIssueButtonList(block, todoItems, 'start');
-                msg.setBlocks(block);
-
-                await modify.getCreator().finish(msg);
+                const view = buildIssueSelectView(block, todoItems, 'start', '퀘스트 시작', context.getRoom().id);
+                const triggerId = context.getTriggerId();
+                if (triggerId) {
+                    await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
+                }
                 return;
             }
 

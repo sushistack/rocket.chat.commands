@@ -6,7 +6,7 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
-import { buildConfirmDialog } from '../ui/blocks';
+import { buildConfirmView } from '../ui/blocks';
 
 export class RegenCommand implements ISlashCommand {
     public command = 'regen';
@@ -38,20 +38,18 @@ export class RegenCommand implements ISlashCommand {
             }
 
             const block = modify.getCreator().getBlockBuilder();
-            buildConfirmDialog(
+            const view = buildConfirmView(
                 block,
                 `⚠️ Done을 제외한 오늘의 퀘스트 **${deletable.length}개**가 삭제됩니다. 진행할까요?\n\n` +
                 '> LLM 기반 자동 재생성은 추후 연동 예정입니다.\n' +
                 '> 삭제 후 `/add` 명령어로 수동 추가해주세요.',
-                'regen_confirm',
-                'regen_cancel',
+                `regen|${context.getRoom().id}`,
+                '퀘스트 재생성',
             );
-
-            const msg = modify.getCreator().startMessage()
-                .setRoom(context.getRoom())
-                .setAttachments([{ color: '#3498db', text: '🔄 퀘스트 재생성' }])
-                .setBlocks(block);
-            await modify.getCreator().finish(msg);
+            const triggerId = context.getTriggerId();
+            if (triggerId) {
+                await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
+            }
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()

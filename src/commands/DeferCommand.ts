@@ -6,7 +6,7 @@ import {
 } from '@rocket.chat/apps-engine/definition/accessors';
 import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
-import { buildIssueButtonList } from '../ui/blocks';
+import { buildIssueSelectView } from '../ui/blocks';
 
 export class DeferCommand implements ISlashCommand {
     public command = 'defer';
@@ -40,12 +40,11 @@ export class DeferCommand implements ISlashCommand {
             }
 
             const block = modify.getCreator().getBlockBuilder();
-            buildIssueButtonList(block, actionable, 'defer', `⏸️ 연기할 퀘스트를 선택하세요 (${actionable.length}개)\n_3회 이상 연기 시 경고가 표시됩니다._`);
-
-            const msg = modify.getCreator().startMessage()
-                .setRoom(context.getRoom())
-                .setBlocks(block);
-            await modify.getCreator().finish(msg);
+            const view = buildIssueSelectView(block, actionable, 'defer', '퀘스트 연기', context.getRoom().id);
+            const triggerId = context.getTriggerId();
+            if (triggerId) {
+                await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
+            }
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()

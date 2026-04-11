@@ -126,8 +126,30 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         modify: IModify,
     ): Promise<IUIKitResponse> {
         const data = context.getInteractionData();
-        const { view } = data;
+        const { view, user } = data;
+        const viewId = view.id;
 
+        // Parse viewId: action|roomId
+        const pipeIdx = viewId.indexOf('|');
+        if (pipeIdx === -1) return context.getInteractionResponder().successResponse();
+
+        const action = viewId.substring(0, pipeIdx);
+        const roomId = viewId.substring(pipeIdx + 1);
+
+        const handler = new ActionHandler(this, read, http, modify);
+
+        // Confirm modal (regen) — submit means confirm
+        if (action === 'regen') {
+            await handler.handleAction('regen_confirm', user.id, roomId);
+            return context.getInteractionResponder().successResponse();
+        }
+
+        // Quest select modals — extract selected issue from form state
+        const state = view.state as Record<string, Record<string, string>> | undefined;
+        const issueId = state?.quest_select_block?.selected_quest;
+        if (!issueId) return context.getInteractionResponder().successResponse();
+
+        await handler.handleAction(`${action}_${issueId}`, user.id, roomId);
         return context.getInteractionResponder().successResponse();
     }
 

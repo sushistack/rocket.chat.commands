@@ -8,6 +8,7 @@ import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/def
 import { getPlaneClient, getRoutineProjectId } from './_helpers';
 import { PlaneClient } from '../plane/PlaneClient';
 import { IssueDisplayItem, priorityEmoji, formatTime } from '../ui/formatters';
+import { buildSelectView } from '../ui/blocks';
 
 export class RestoreCommand implements ISlashCommand {
     public command = 'restore';
@@ -61,30 +62,23 @@ export class RestoreCommand implements ISlashCommand {
                 return;
             }
 
-            const block = modify.getCreator().getBlockBuilder();
-
-            for (const item of deferredItems) {
+            const options = deferredItems.map((item) => {
                 const p = priorityEmoji(item.issue.priority);
                 const deferCount = item.meta.defer_count || 0;
                 const origDate = item.meta.original_quest_date || '?';
-                const label = `${p} ${item.issue.name} — 연기 ${deferCount}회 | 원래 날짜: ${origDate}`;
+                const label = `${p} ${item.issue.name} — ${deferCount}회 | ${origDate}`;
+                return {
+                    text: label.length > 75 ? label.substring(0, 72) + '...' : label,
+                    value: item.issue.id,
+                };
+            });
 
-                const truncated = label.length > 75 ? label.substring(0, 72) + '...' : label;
-                block.addSectionBlock({
-                    text: block.newMarkdownTextObject(truncated),
-                    accessory: block.newButtonElement({
-                        actionId: `restore_${item.issue.id}`,
-                        text: block.newPlainTextObject('복원'),
-                        value: item.issue.id,
-                    }),
-                });
+            const block = modify.getCreator().getBlockBuilder();
+            const view = buildSelectView(block, options, `restore|${context.getRoom().id}`, '퀘스트 복원');
+            const triggerId = context.getTriggerId();
+            if (triggerId) {
+                await modify.getUiController().openSurfaceView(view, { triggerId }, context.getSender());
             }
-
-            const msg = modify.getCreator().startMessage()
-                .setRoom(context.getRoom())
-                .setAttachments([{ color: '#3498db', text: '🔄 복원할 퀘스트를 선택하세요:' }])
-                .setBlocks(block);
-            await modify.getCreator().finish(msg);
         } catch (error) {
             const errMsg = error instanceof Error ? error.message : String(error);
             const msg = modify.getCreator().startMessage()

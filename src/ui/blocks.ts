@@ -1,4 +1,5 @@
 import { BlockBuilder, BlockElementType, TextObjectType } from '@rocket.chat/apps-engine/definition/uikit';
+import { UIKitSurfaceType } from '@rocket.chat/apps-engine/definition/uikit';
 import { IMessageAttachment, IMessageAttachmentField } from '@rocket.chat/apps-engine/definition/messages';
 import {
     IssueDisplayItem,
@@ -13,42 +14,83 @@ import {
     formatIssueOneLiner,
 } from './formatters';
 
-export function buildIssueButtonList(
+// ─── Modal-based select view (mobile-friendly) ───
+
+export function buildSelectView(
+    block: BlockBuilder,
+    options: Array<{ text: string; value: string }>,
+    viewId: string,
+    title: string,
+) {
+    block.addInputBlock({
+        blockId: 'quest_select_block',
+        element: block.newStaticSelectElement({
+            actionId: 'selected_quest',
+            placeholder: block.newPlainTextObject('퀘스트를 선택하세요'),
+            options: options.map((opt) => ({
+                text: block.newPlainTextObject(opt.text),
+                value: opt.value,
+            })),
+        }),
+        label: block.newPlainTextObject('퀘스트'),
+    });
+
+    return {
+        type: UIKitSurfaceType.MODAL,
+        id: viewId,
+        title: block.newPlainTextObject(title),
+        blocks: block.getBlocks(),
+        submit: block.newButtonElement({ text: block.newPlainTextObject('확인') }),
+        close: block.newButtonElement({ text: block.newPlainTextObject('취소') }),
+    };
+}
+
+export function buildIssueSelectView(
     block: BlockBuilder,
     items: IssueDisplayItem[],
     actionPrefix: string,
-    header?: string,
-): void {
-    // Sort by scheduled_time
+    title: string,
+    roomId: string,
+) {
     const sorted = [...items].sort((a, b) =>
         (a.meta.scheduled_time || '99:99').localeCompare(b.meta.scheduled_time || '99:99'),
     );
-    if (header) {
-        block.addSectionBlock({
-            text: block.newMarkdownTextObject(header),
-        });
-        block.addDividerBlock();
-    }
-    for (let i = 0; i < sorted.length; i++) {
-        const item = sorted[i];
+
+    const options = sorted.map((item) => {
         const p = priorityEmoji(item.issue.priority);
         const time = item.meta.scheduled_time;
         const dur = item.meta.adjusted_duration_min;
         const parts = [p, item.issue.name];
-        if (time) parts.push(`${time}`);
+        if (time) parts.push(time);
         if (dur) parts.push(`(${dur}분)`);
         const label = parts.join(' ');
-        const truncated = label.length > 75 ? label.substring(0, 72) + '...' : label;
+        return {
+            text: label.length > 75 ? label.substring(0, 72) + '...' : label,
+            value: item.issue.id,
+        };
+    });
 
-        block.addSectionBlock({
-            text: block.newMarkdownTextObject(truncated),
-            accessory: block.newButtonElement({
-                actionId: `${actionPrefix}_${item.issue.id}`,
-                text: block.newPlainTextObject('선택'),
-                value: item.issue.id,
-            }),
-        });
-    }
+    return buildSelectView(block, options, `${actionPrefix}|${roomId}`, title);
+}
+
+export function buildConfirmView(
+    block: BlockBuilder,
+    message: string,
+    viewId: string,
+    title: string,
+) {
+    block.addSectionBlock({
+        text: block.newMarkdownTextObject(message),
+    });
+
+    return {
+        type: UIKitSurfaceType.MODAL,
+        id: viewId,
+        title: block.newPlainTextObject(title),
+        blocks: block.getBlocks(),
+        submit: block.newButtonElement({ text: block.newPlainTextObject('✅ 확인') }),
+        close: block.newButtonElement({ text: block.newPlainTextObject('❌ 취소') }),
+    };
 }
 
 export function buildTodaySummaryBlocks(
@@ -478,30 +520,4 @@ export function buildHelpAttachments(): IMessageAttachment[] {
     ];
 }
 
-export function buildConfirmDialog(
-    block: BlockBuilder,
-    message: string,
-    confirmActionId: string,
-    cancelActionId: string,
-): void {
-    block.addSectionBlock({
-        text: block.newMarkdownTextObject(message),
-    });
-    block.addDividerBlock();
-    block.addActionsBlock({
-        blockId: 'confirm_block',
-        elements: [
-            block.newButtonElement({
-                actionId: confirmActionId,
-                text: block.newPlainTextObject('✅ 확인'),
-                value: 'confirm',
-            }),
-            block.newButtonElement({
-                actionId: cancelActionId,
-                text: block.newPlainTextObject('❌ 취소'),
-                value: 'cancel',
-            }),
-        ],
-    });
-}
 
