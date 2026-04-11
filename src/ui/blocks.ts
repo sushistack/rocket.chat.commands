@@ -460,7 +460,7 @@ export function buildHelpAttachments(): IMessageAttachment[] {
             text: '⚙️ 생성/관리',
             fields: [
                 { title: '/gen', value: '퀘스트 생성 (루틴 복사)', short: true },
-                { title: '/regen [confirm]', value: '초기화 후 재생성', short: true },
+                { title: '/regen', value: '초기화 후 재생성', short: true },
             ],
         },
     ];
