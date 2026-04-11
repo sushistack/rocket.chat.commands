@@ -190,7 +190,7 @@ export class DailyQuestGenerator implements IProcessor {
                 const meta = PlaneClient.parseMeta(routine.description_html);
                 if (meta.routine_active_from && meta.routine_active_from > today) continue;
                 if (meta.routine_active_until && meta.routine_active_until < today) continue;
-                if (meta.routine_type === 'weekly' && meta.routine_days && !meta.routine_days.includes(todayDay)) continue;
+                if (meta.routine_days?.length && !meta.routine_days.includes(todayDay)) continue;
 
                 // Preserve all routine metadata via spread
                 const questMeta: PulsarMeta = {

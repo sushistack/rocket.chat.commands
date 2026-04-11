@@ -48,10 +48,10 @@ function countExpectedDays(
     while (current <= effectiveEnd) {
         const day = dayNames[current.getUTCDay()];
 
-        if (meta.routine_type === 'weekly' && meta.routine_days) {
+        if (meta.routine_days?.length) {
             if (meta.routine_days.includes(day)) count++;
         } else {
-            // daily or undefined → every day
+            // no routine_days → every day
             count++;
         }
 
