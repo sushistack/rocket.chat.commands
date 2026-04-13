@@ -99,7 +99,6 @@ export function buildTodaySummaryBlocks(
         { key: 'cancelled', emoji: '❌', label: 'Canceled' },
     ];
 
-    let idx = 1;
     for (const { key, emoji, label } of groupOrder) {
         const groupItems = grouped.get(key) || [];
         if (groupItems.length === 0) continue;
@@ -110,7 +109,7 @@ export function buildTodaySummaryBlocks(
             ],
         });
 
-        const lines = groupItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
+        const lines = groupItems.map((item, i) => formatIssueOneLiner(item, i + 1)).join('\n');
         block.addSectionBlock({
             text: block.newMarkdownTextObject(lines),
         });
@@ -122,7 +121,7 @@ export function buildTodaySummaryBlocks(
                 block.newMarkdownTextObject(`⏸️ *Deferred*`),
             ],
         });
-        const lines = deferredItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
+        const lines = deferredItems.map((item, i) => formatIssueOneLiner(item, i + 1)).join('\n');
         block.addSectionBlock({
             text: block.newMarkdownTextObject(lines),
         });
@@ -199,12 +198,11 @@ export function buildTodaySummaryAttachments(
     const sortByTime = (a: IssueDisplayItem, b: IssueDisplayItem) =>
         (a.meta.scheduled_time || '99:99').localeCompare(b.meta.scheduled_time || '99:99');
 
-    let idx = 1;
     for (const { key, emoji, label, color: groupColor } of groupConfig) {
         const groupItems = (grouped.get(key) || []).sort(sortByTime);
         if (groupItems.length === 0) continue;
 
-        const lines = groupItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
+        const lines = groupItems.map((item, i) => formatIssueOneLiner(item, i + 1)).join('\n');
         attachments.push({
             color: groupColor,
             text: `${emoji} ${label}\n${lines}`,
@@ -213,7 +211,7 @@ export function buildTodaySummaryAttachments(
 
     if (deferredItems.length > 0) {
         deferredItems.sort(sortByTime);
-        const lines = deferredItems.map((item) => formatIssueOneLiner(item, idx++)).join('\n');
+        const lines = deferredItems.map((item, i) => formatIssueOneLiner(item, i + 1)).join('\n');
         attachments.push({
             color: '#9b59b6',
             text: `⏸️ Deferred\n${lines}`,
