@@ -35,7 +35,7 @@ export class DeferredCleanup implements IProcessor {
             const report: string[] = [];
             const todayMs = new Date(today + 'T00:00:00+09:00').getTime();
 
-            for (const issue of deferredIssues) {
+            const results = await Promise.all(deferredIssues.map(async (issue) => {
                 const meta = PlaneClient.parseMeta(issue.description_html);
                 const deferCount = meta.defer_count || 0;
                 const questDate = meta.quest_date || issue.target_date;
@@ -44,7 +44,6 @@ export class DeferredCleanup implements IProcessor {
                     ? Math.floor((todayMs - questMs) / (1000 * 60 * 60 * 24))
                     : 0;
 
-                // Auto-cancel if 3+ days elapsed and not mandatory
                 if (elapsedDays >= 3) {
                     const isMandatory = meta.routine_mandatory === true;
                     if (!isMandatory) {
@@ -56,14 +55,19 @@ export class DeferredCleanup implements IProcessor {
                             issue.id,
                             `<p>🗑️ [${today}] ${elapsedDays}일 경과로 자동 취소됨. 필요시 /restore로 복원 가능</p>`,
                         );
-                        autoCancelled++;
-                        report.push(`  ❌ ${issue.name} (${elapsedDays}일 경과 → 자동 취소)`);
-                    } else {
-                        report.push(`  ⚠️ ${issue.name} (${elapsedDays}일 경과, 필수 루틴 → 유지)`);
+                        return { cancelled: true, line: `  ❌ ${issue.name} (${elapsedDays}일 경과 → 자동 취소)` };
                     }
+                    return { cancelled: false, line: `  ⚠️ ${issue.name} (${elapsedDays}일 경과, 필수 루틴 → 유지)` };
                 } else if (deferCount >= 2) {
-                    report.push(`  ⏸️ ${issue.name} (${deferCount}회 연기, ${elapsedDays}일 경과)`);
+                    return { cancelled: false, line: `  ⏸️ ${issue.name} (${deferCount}회 연기, ${elapsedDays}일 경과)` };
                 }
+                return null;
+            }));
+
+            for (const r of results) {
+                if (!r) continue;
+                if (r.cancelled) autoCancelled++;
+                report.push(r.line);
             }
 
             // Post weekly report if there's anything to report

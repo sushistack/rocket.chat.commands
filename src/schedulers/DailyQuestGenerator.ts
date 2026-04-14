@@ -42,22 +42,21 @@ export class DailyQuestGenerator implements IProcessor {
     private async step1RoutineOnOff(client: PlaneClient, today: string): Promise<void> {
         const projects = await client.listProjects();
 
-        for (const project of projects) {
+        await Promise.all(projects.map(async (project) => {
             const labels = await client.listLabels(project.id);
             const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
-            if (!routineLabel) continue;
+            if (!routineLabel) return;
 
             const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
             const offLabel = labels.find((l) => l.name.toLowerCase() === 'off');
-            if (!onLabel || !offLabel) continue;
+            if (!onLabel || !offLabel) return;
 
             const issues = await client.listIssues(project.id);
             const routineIssues = issues.filter((i) => i.labels.includes(routineLabel.id));
 
-            for (const issue of routineIssues) {
+            await Promise.all(routineIssues.map(async (issue) => {
                 const meta = PlaneClient.parseMeta(issue.description_html);
-                // Skip if no active period defined
-                if (!meta.routine_active_from && !meta.routine_active_until) continue;
+                if (!meta.routine_active_from && !meta.routine_active_until) return;
 
                 const isWithinPeriod =
                     (!meta.routine_active_from || meta.routine_active_from <= today) &&
@@ -67,19 +66,21 @@ export class DailyQuestGenerator implements IProcessor {
 
                 try {
                     if (isWithinPeriod && hasOff) {
-                        // 기간 내인데 off → on으로 전환
-                        await client.removeLabelFromIssue(project.id, issue.id, offLabel.id);
-                        await client.addLabelToIssue(project.id, issue.id, onLabel.id);
+                        // 기간 내인데 off → on으로 전환 (single patch)
+                        const newLabels = issue.labels.filter((l) => l !== offLabel.id);
+                        if (!newLabels.includes(onLabel.id)) newLabels.push(onLabel.id);
+                        await client.updateIssue(project.id, issue.id, { labels: newLabels } as any);
                     } else if (!isWithinPeriod && hasOn) {
-                        // 기간 밖인데 on → off로 전환
-                        await client.removeLabelFromIssue(project.id, issue.id, onLabel.id);
-                        await client.addLabelToIssue(project.id, issue.id, offLabel.id);
+                        // 기간 밖인데 on → off로 전환 (single patch)
+                        const newLabels = issue.labels.filter((l) => l !== onLabel.id);
+                        if (!newLabels.includes(offLabel.id)) newLabels.push(offLabel.id);
+                        await client.updateIssue(project.id, issue.id, { labels: newLabels } as any);
                     }
                 } catch {
                     // Log error, skip this routine
                 }
-            }
-        }
+            }));
+        }));
     }
 
     /**
@@ -107,7 +108,7 @@ export class DailyQuestGenerator implements IProcessor {
             return i.target_date && i.target_date < today;
         });
 
-        for (const issue of overdue) {
+        await Promise.all(overdue.map(async (issue) => {
             const meta = PlaneClient.parseMeta(issue.description_html);
             const deferCount = (meta.defer_count || 0) + 1;
             if (!meta.original_quest_date) {
@@ -125,7 +126,7 @@ export class DailyQuestGenerator implements IProcessor {
                 issue.id,
                 `<p>⏳ [${today}] 미완료로 자동 연기됨 (연기 횟수: ${deferCount})</p>`,
             );
-        }
+        }));
     }
 
     /**
@@ -167,14 +168,21 @@ export class DailyQuestGenerator implements IProcessor {
         const todayDate = new Date(today + 'T12:00:00+09:00');
         const todayDay = dayNames[todayDate.getUTCDay()];
 
-        for (const project of projects) {
-            if (project.id === projectId) continue;
+        // Parallel: scan all source projects and collect routines to copy
+        interface RoutineToCopy {
+            routine: PlaneIssue;
+            sourceProject: { id: string };
+            sourceLabelById: Map<string, string>;
+        }
+        const allRoutines: RoutineToCopy[] = [];
+
+        await Promise.all(projects.map(async (project) => {
+            if (project.id === projectId) return;
 
             const labels = await client.listLabels(project.id);
             const routineLabel = labels.find((l) => l.name.toLowerCase() === 'daily-routine');
-            if (!routineLabel) continue;
+            if (!routineLabel) return;
             const onLabel = labels.find((l) => l.name.toLowerCase() === 'on');
-            // 소스 라벨 ID→이름 매핑
             const sourceLabelById = new Map(labels.map((l) => [l.id, l.name]));
 
             const issues = await client.listIssues(project.id);
@@ -192,40 +200,44 @@ export class DailyQuestGenerator implements IProcessor {
                 if (meta.routine_active_until && meta.routine_active_until < today) continue;
                 if (meta.routine_days?.length && !meta.routine_days.includes(todayDay)) continue;
 
-                // Preserve all routine metadata via spread
-                const questMeta: PulsarMeta = {
-                    ...meta,
-                    quest_date: today,
-                    scheduled_time: meta.routine_time,
-                    adjusted_duration_min: meta.routine_duration_min || 30,
-                    generation_source: 'routine_copy' as const,
-                    defer_count: 0,
-                    source_project_id: project.id,
-                    source_issue_id: routine.id,
-                };
-
-                const descHtml = PlaneClient.setMeta(
-                    `<p>${routine.name}</p>`,
-                    questMeta,
-                );
-
-                // 소스 라벨을 루틴 프로젝트 라벨로 매핑 (on/off 제외)
-                const questLabels = routine.labels
-                    .map((id) => sourceLabelById.get(id))
-                    .filter((name): name is string => !!name && !EXCLUDED_LABELS.has(name.toLowerCase()))
-                    .map((name) => targetLabelByName.get(name.toLowerCase()))
-                    .filter((id): id is string => !!id);
-
-                await client.createIssue(projectId, {
-                    name: routine.name,
-                    description_html: descHtml,
-                    state: todoState.id,
-                    priority: routine.priority,
-                    target_date: today,
-                    labels: questLabels,
-                } as any);
+                allRoutines.push({ routine, sourceProject: project, sourceLabelById });
             }
-        }
+        }));
+
+        // Parallel: create all quest issues
+        await Promise.all(allRoutines.map(async ({ routine, sourceProject, sourceLabelById }) => {
+            const meta = PlaneClient.parseMeta(routine.description_html);
+            const questMeta: PulsarMeta = {
+                ...meta,
+                quest_date: today,
+                scheduled_time: meta.routine_time,
+                adjusted_duration_min: meta.routine_duration_min || 30,
+                generation_source: 'routine_copy' as const,
+                defer_count: 0,
+                source_project_id: sourceProject.id,
+                source_issue_id: routine.id,
+            };
+
+            const descHtml = PlaneClient.setMeta(
+                `<p>${routine.name}</p>`,
+                questMeta,
+            );
+
+            const questLabels = routine.labels
+                .map((id) => sourceLabelById.get(id))
+                .filter((name): name is string => !!name && !EXCLUDED_LABELS.has(name.toLowerCase()))
+                .map((name) => targetLabelByName.get(name.toLowerCase()))
+                .filter((id): id is string => !!id);
+
+            await client.createIssue(projectId, {
+                name: routine.name,
+                description_html: descHtml,
+                state: todoState.id,
+                priority: routine.priority,
+                target_date: today,
+                labels: questLabels,
+            } as any);
+        }));
     }
 
     /**
@@ -250,15 +262,15 @@ export class DailyQuestGenerator implements IProcessor {
 
         const todayMs = new Date(today + 'T00:00:00+09:00').getTime();
 
-        for (const issue of deferredIssues) {
+        await Promise.all(deferredIssues.map(async (issue) => {
             const meta = PlaneClient.parseMeta(issue.description_html);
-            if (meta.routine_mandatory === true) continue;
+            if (meta.routine_mandatory === true) return;
 
             const questDate = meta.quest_date || issue.target_date;
-            if (!questDate) continue;
+            if (!questDate) return;
 
             const questMs = new Date(questDate + 'T00:00:00+09:00').getTime();
-            if (isNaN(questMs)) continue;
+            if (isNaN(questMs)) return;
             const elapsedDays = Math.floor((todayMs - questMs) / (1000 * 60 * 60 * 24));
 
             if (elapsedDays >= 3) {
@@ -271,6 +283,6 @@ export class DailyQuestGenerator implements IProcessor {
                     `<p>🗑️ [${today}] ${elapsedDays}일 경과로 자동 취소됨. 필요시 /restore로 복원 가능</p>`,
                 );
             }
-        }
+        }));
     }
 }
