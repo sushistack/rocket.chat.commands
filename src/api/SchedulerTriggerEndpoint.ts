@@ -4,15 +4,12 @@ import { IApiRequest } from '@rocket.chat/apps-engine/definition/api/IRequest';
 import { IApiResponse } from '@rocket.chat/apps-engine/definition/api/IResponse';
 import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
 import { AppSetting } from '../settings';
-import { DailyQuestGenerator } from '../schedulers/DailyQuestGenerator';
-import { DailySummaryReporter } from '../schedulers/DailySummaryReporter';
-import { DeferredCleanup } from '../schedulers/DeferredCleanup';
 
-const processors: Record<string, { new(): any }> = {
-    'daily-quest-generator': DailyQuestGenerator,
-    'daily-summary-reporter': DailySummaryReporter,
-    'deferred-cleanup': DeferredCleanup,
-};
+const VALID_JOBS = new Set([
+    'daily-quest-generator',
+    'daily-summary-reporter',
+    'deferred-cleanup',
+]);
 
 export class SchedulerTriggerEndpoint extends ApiEndpoint {
     public path = 'trigger';
@@ -25,7 +22,6 @@ export class SchedulerTriggerEndpoint extends ApiEndpoint {
         http: IHttp,
         persis: IPersistence,
     ): Promise<IApiResponse> {
-        // Verify trigger secret
         const secret = await read.getEnvironmentReader().getSettings().getValueById(AppSetting.TriggerSecret);
         const token = request.headers['x-trigger-secret'] || request.query?.secret;
         if (!secret || token !== secret) {
@@ -37,34 +33,22 @@ export class SchedulerTriggerEndpoint extends ApiEndpoint {
 
         const jobId = request.query?.job || request.content?.job;
 
-        if (!jobId || !processors[jobId]) {
+        if (!jobId || !VALID_JOBS.has(jobId)) {
             return this.json({
                 status: 400 as any,
                 content: {
                     success: false,
-                    error: `Invalid job. Available: ${Object.keys(processors).join(', ')}`,
+                    error: `Invalid job. Available: ${[...VALID_JOBS].join(', ')}`,
                 },
             });
         }
 
-        try {
-            const ProcessorClass = processors[jobId];
-            const processor = new ProcessorClass();
-            await processor.processor({}, read, modify, http, persis);
+        // Queue via Apps-Engine scheduler — returns immediately, no 30s timeout risk
+        await modify.getScheduler().scheduleOnce({ id: jobId, when: new Date() });
 
-            return this.json({
-                status: 200 as any,
-                content: { success: true, job: jobId },
-            });
-        } catch (error: any) {
-            return this.json({
-                status: 500 as any,
-                content: {
-                    success: false,
-                    job: jobId,
-                    error: error.message || String(error),
-                },
-            });
-        }
+        return this.json({
+            status: 200 as any,
+            content: { success: true, job: jobId, queued: true },
+        });
     }
 }
