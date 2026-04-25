@@ -42,11 +42,6 @@ import { DeleteCommand } from './src/commands/DeleteCommand';
 import { ApiSecurity, ApiVisibility } from '@rocket.chat/apps-engine/definition/api';
 import { SchedulerTriggerEndpoint } from './src/api/SchedulerTriggerEndpoint';
 
-// Schedulers
-import { DailyQuestGenerator } from './src/schedulers/DailyQuestGenerator';
-import { DailySummaryReporter } from './src/schedulers/DailySummaryReporter';
-import { DeferredCleanup } from './src/schedulers/DeferredCleanup';
-
 export class PulsarApp extends App implements IUIKitInteractionHandler {
     constructor(info: IAppInfo, logger: ILogger, accessors: IAppAccessors) {
         super(info, logger, accessors);
@@ -76,13 +71,6 @@ export class PulsarApp extends App implements IUIKitInteractionHandler {
         await configuration.slashCommands.provideSlashCommand(new GenerateCommand());
         await configuration.slashCommands.provideSlashCommand(new ReportCommand());
         await configuration.slashCommands.provideSlashCommand(new DeleteCommand(this));
-
-        // Register scheduler processors (required for scheduleOnce to find them)
-        await configuration.scheduler.registerProcessors([
-            new DailyQuestGenerator(),
-            new DailySummaryReporter(),
-            new DeferredCleanup(),
-        ]);
 
         // Register API endpoints (n8n triggers schedulers via HTTP)
         await configuration.api.provideApi({
