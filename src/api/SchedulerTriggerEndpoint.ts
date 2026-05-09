@@ -47,24 +47,13 @@ export class SchedulerTriggerEndpoint extends ApiEndpoint {
             });
         }
 
-        try {
-            const ProcessorClass = processors[jobId];
-            const processor = new ProcessorClass();
-            await processor.processor({}, read, modify, http, persis);
+        const ProcessorClass = processors[jobId];
+        const processor = new ProcessorClass();
+        processor.processor({}, read, modify, http, persis).catch(() => {});
 
-            return this.json({
-                status: 200 as any,
-                content: { success: true, job: jobId },
-            });
-        } catch (error: any) {
-            return this.json({
-                status: 500 as any,
-                content: {
-                    success: false,
-                    job: jobId,
-                    error: error.message || String(error),
-                },
-            });
-        }
+        return this.json({
+            status: 200 as any,
+            content: { success: true, job: jobId, async: true },
+        });
     }
 }
