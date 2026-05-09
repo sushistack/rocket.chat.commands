@@ -49,7 +49,22 @@ export class SchedulerTriggerEndpoint extends ApiEndpoint {
 
         const ProcessorClass = processors[jobId];
         const processor = new ProcessorClass();
-        processor.processor({}, read, modify, http, persis).catch(() => {});
+        processor.processor({}, read, modify, http, persis).catch(async (error: any) => {
+            try {
+                const room = await read.getRoomReader().getByName('pulse');
+                if (!room) return;
+                const msg = modify.getCreator().startMessage()
+                    .setRoom(room)
+                    .setAttachments([{
+                        color: '#e74c3c',
+                        text: `❌ 스케줄러 실패: \`${jobId}\``,
+                        fields: [{ title: 'Error', value: error?.message || String(error), short: false }],
+                    }]);
+                await modify.getCreator().finish(msg);
+            } catch {
+                // notification failed — nothing more to do
+            }
+        });
 
         return this.json({
             status: 200 as any,
